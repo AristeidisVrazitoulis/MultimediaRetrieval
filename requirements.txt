@@ -1,0 +1,6 @@
+numpy==2.2.6
+pandas==2.3.3
+matplotlib==3.10.9
+open3d==0.20.0
+pymeshlab==2025.7.post1
+tqdm==4.70.1
