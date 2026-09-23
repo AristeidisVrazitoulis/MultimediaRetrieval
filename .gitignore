@@ -222,3 +222,4 @@ ShapeDatabase_final/
 ShapeDatabase_normalized/
 
 .venv310/
+.vscode/
