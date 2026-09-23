@@ -217,4 +217,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-ShapeDatabase_INFOMR-master/
+ShapeDatabase/
+ShapeDatabase_final/
+ShapeDatabase_normalized/
+
+.venv310/
