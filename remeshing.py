@@ -11,8 +11,7 @@ import shutil
 TARGET_VERTICES = 6000          
 OUTPUT_DIR = "ShapeDatabase_final"
 
-LOW_THRESHOLD = 100
-HIGH_THRESHOLD = 100000
+
 
 resample_log = []
 
@@ -98,15 +97,15 @@ def verify_resampled_files(resample_log_filename, verification_filename):
     return df_check
 
 
-def remesh_outliers(df, out_filename):
+def remesh_outliers(df, out_filename, low_threshold, high_threshold):
       # one-time full copy of the original database; save_resampled() then
     # overwrites just the outlier files in place, so ShapeDatabase_final ends
     # up as a single complete, corrected working database (no separate merge step)
     if not os.path.exists(OUTPUT_DIR):
         shutil.copytree("ShapeDatabase", OUTPUT_DIR)
 
-    low_outliers = df[(df['num_faces'] < LOW_THRESHOLD) | (df['num_vertices'] < LOW_THRESHOLD)]
-    high_outliers = df[(df['num_faces'] > HIGH_THRESHOLD) | (df['num_vertices'] > HIGH_THRESHOLD)]
+    low_outliers = df[(df['num_faces'] < low_threshold) | (df['num_vertices'] < low_threshold)]
+    high_outliers = df[(df['num_faces'] > high_threshold) | (df['num_vertices'] > high_threshold)]
     
     for _, row in low_outliers.iterrows():
         ms = refine(row['file'])
@@ -119,6 +118,12 @@ def remesh_outliers(df, out_filename):
     print(f"Total outliers: {len(low_outliers)+ len(high_outliers)}")
     pd.DataFrame(resample_log).to_csv(out_filename, index=False)
 
+def filter_dataframe(df, sample_size=200):
+    ret_df = (df.groupby('class', group_keys=False)
+            .apply(lambda g: g.sample(min(len(g), max(1, sample_size // df['class'].nunique())), random_state=42))
+            .reset_index(drop=True))
+    return ret_df
+    
 
 # find outliers
 if __name__ == '__main__':

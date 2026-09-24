@@ -6,12 +6,18 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mesh_export import open_mesh, visualize_mesh, get_mesh_data, export_media_to_csv
 from mesh_stats_plot import plot_stats
-from remeshing import remesh_outliers, verify_resampled_files
+from remeshing import remesh_outliers, verify_resampled_files, filter_dataframe
 from remeshing_validation import compare_objects
 from normalizer import normalize_database, check_normalization
 
 
+USE_FILTER = True
 
+# Threshold outliers
+LOW_THRESHOLD = 100
+HIGH_THRESHOLD = 100000
+
+df_sample_size = 200
 
 REMESHED_DB_NAME = "ShapeDatabase_final"
 NORMALIZED_DB_NAME = "ShapeDatabase_normalized"
@@ -36,7 +42,11 @@ plot_stats(initial_stats_filename)
 # As a result, we have a new db 'ShapeDatabase_final'
 
 df = pd.read_csv(initial_stats_filename)
-remesh_outliers(df, resample_report_filename)
+# we might not need the whole database at first, so we take an even sample
+if USE_FILTER:
+    df = filter_dataframe(df)
+
+remesh_outliers(df, resample_report_filename, LOW_THRESHOLD, HIGH_THRESHOLD)
 
 
 # Step 2.4
