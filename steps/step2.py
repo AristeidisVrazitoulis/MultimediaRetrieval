@@ -4,13 +4,13 @@ import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mesh_export import open_mesh, visualize_mesh, get_mesh_data, export_media_to_csv
+from mesh_exporter import export_media_to_csv
+from mesh_vizualizer import visualize_avg_shape
 from mesh_stats_plot import plot_stats
 from remeshing import remesh_outliers, verify_resampled_files, filter_dataframe
 from remeshing_validation import compare_objects
 from normalizer import normalize_database, check_normalization
-
-
+    
 USE_FILTER = True
 
 # Threshold outliers
@@ -35,35 +35,44 @@ export_media_to_csv("ShapeDatabase", initial_stats_filename)
 
 # # Step 2.2
 # # Visualize some statistics from previous csv
-plot_stats(initial_stats_filename)
+df_stats = pd.read_csv(initial_stats_filename)
+plot_stats(df_stats)
+# Display average object
+visualize_avg_shape(df_stats)
+
 
 # Step 2.3
 # Spot the outliers (<100 and >100.000 vertices) and refine or simplify accordingly
 # As a result, we have a new db 'ShapeDatabase_final'
 
-df = pd.read_csv(initial_stats_filename)
+df = df_stats
 # we might not need the whole database at first, so we take an even sample
 if USE_FILTER:
     df = filter_dataframe(df)
-
 remesh_outliers(df, resample_report_filename, LOW_THRESHOLD, HIGH_THRESHOLD)
 
 
 # Step 2.4
 # Export again the whole stats from the new db and visualize the differences
 export_media_to_csv(REMESHED_DB_NAME, updated_stats_filename)
-plot_stats(updated_stats_filename)
+df_updated_stats = pd.read_csv(updated_stats_filename)
+plot_stats(df_updated_stats)
+
 # We pick an extreme example of a door
-object_filename = "Door/m1708.obj"
-compare_objects(object_filename)
+# ShapeDatabase/Door/m1708.obj: 16 -> 21828 vertices
+low_outlier = "Door/m1708.obj"
+# ShapeDatabase/Biplane/m1120.obj: 65722 -> 6653 vertices
+high_outlier = "Biplane/m1120.obj"
+
+compare_objects(low_outlier)
+compare_objects(high_outlier)
 verify_resampled_files(resample_report_filename, resample_stats_verification_filename)
 
 
 # Step 2.5
+# normalize
 df_all = normalize_database(df, REMESHED_DB_NAME, NORMALIZED_DB_NAME)
 check_normalization(df_all, normalization_report_filename)
-
-
 
 
 

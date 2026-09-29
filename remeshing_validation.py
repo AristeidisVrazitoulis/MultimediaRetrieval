@@ -1,6 +1,5 @@
 
-from mesh_export import open_mesh, visualize_mesh
-from mesh_export import export_media_to_csv
+from mesh_vizualizer import open_mesh, visualize_mesh
 
 
 
@@ -17,5 +16,5 @@ def compare_objects(object_filename):
     print("After resampling")
     print(len(resampled_mesh.vertices))
 
-    visualize_mesh(old_mesh)
-    visualize_mesh(resampled_mesh)
+    visualize_mesh(old_mesh, "wireframe_on_shaded")
+    visualize_mesh(resampled_mesh, "wireframe_on_shaded")

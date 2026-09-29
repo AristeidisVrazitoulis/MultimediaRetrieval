@@ -97,7 +97,7 @@ def verify_resampled_files(resample_log_filename, verification_filename):
     return df_check
 
 
-def remesh_outliers(df, out_filename, low_threshold, high_threshold):
+def remesh_outliers(df, out_filename, low_threshold, high_threshold, save_outliers=False):
       # one-time full copy of the original database; save_resampled() then
     # overwrites just the outlier files in place, so ShapeDatabase_final ends
     # up as a single complete, corrected working database (no separate merge step)
@@ -107,6 +107,10 @@ def remesh_outliers(df, out_filename, low_threshold, high_threshold):
     low_outliers = df[(df['num_faces'] < low_threshold) | (df['num_vertices'] < low_threshold)]
     high_outliers = df[(df['num_faces'] > high_threshold) | (df['num_vertices'] > high_threshold)]
     
+    if save_outliers:
+        combined = pd.concat([low_outliers, high_outliers], ignore_index=True)
+        combined.to_csv("stats/outliers.csv", index=False)
+
     for _, row in low_outliers.iterrows():
         ms = refine(row['file'])
         save_resampled(ms, row)
