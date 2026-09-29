@@ -36,7 +36,7 @@ def get_face_type(mesh_path):
 def get_mesh_data(mesh, file_path):
     num_vertices = len(mesh.vertices)
     num_faces = len(mesh.triangles)
-    class_name = file_path.split('/')[1]
+    class_name = os.path.basename(os.path.dirname(file_path))
     face_type = get_face_type(file_path)
     bbox = mesh.get_axis_aligned_bounding_box()
     min_b, max_b = bbox.get_min_bound(), bbox.get_max_bound()
@@ -118,6 +118,19 @@ def export_media_to_csv(database_root, export_filname):
 
     df = pd.DataFrame(all_shape_data)
     df.to_csv(export_filname, index=False)
+
+
+def visualize_avg_shape(df):
+    avg_vertices = df['num_vertices'].mean()
+    closest_idx = (df['num_vertices'] - avg_vertices).abs().idxmin()
+    average_shape = df.loc[closest_idx]
+    print(average_shape)
+    visualize_shape(average_shape.file)
+
+def visualize_shape(filename):
+    mesh = open_mesh(filename)
+    mesh.compute_vertex_normals()
+    visualize_mesh(mesh)
 
 # mesh.compute_vertex_normals()
 if __name__ == '__main__':
