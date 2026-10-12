@@ -30,24 +30,29 @@ def clean_mesh(ms):
 def refine(path, target_v=TARGET_VERTICES):
     ms = pml.MeshSet()
     ms.load_new_mesh(path)
-    clean_mesh(ms)
+    was_nonmanifold = clean_mesh(ms)
 
-    for _ in range(10):  #keep subdividing until we pass the target or not
-        ms.meshing_surface_subdivision_midpoint(iterations=1)
-        if ms.current_mesh().vertex_number() >= target_v:
+    threshold_factor = 0.02
+    for _ in range(10):
+        nv = ms.current_mesh().vertex_number()
+        if nv >= target_v:
             break
-    return ms
+        bbox_diag = ms.current_mesh().bounding_box().diagonal()
+        ms.meshing_surface_subdivision_midpoint(threshold=pml.PureValue(bbox_diag * threshold_factor))
+        threshold_factor *= 1.3   #raise threshold each pass so fewer edges qualify next round
+
+    return ms, was_nonmanifold
 
 #meshing_decimation_quadric_edge_collapse(targetfacenum=...) (repeatedly merges
 #the edge whose removal changes the shape least until it hits the target
 def simplify(path, target_v=TARGET_VERTICES):
     ms = pml.MeshSet()
     ms.load_new_mesh(path)
-    clean_mesh(ms)
+    was_nonmanifold = clean_mesh(ms)
     ms.meshing_decimation_quadric_edge_collapse(targetfacenum=target_v * 2)
-    return ms
+    return ms, was_nonmanifold
 
-def save_resampled(ms, row):
+def save_resampled(ms, row, was_nonmanifold):
     class_dir = os.path.join(OUTPUT_DIR, row['class'])
     os.makedirs(class_dir, exist_ok=True)
     out_path = os.path.join(class_dir, os.path.basename(row['file']))
@@ -58,7 +63,7 @@ def save_resampled(ms, row):
     resample_log.append({
         "file": row['file'], "class": row['class'],
         "old_vertices": row['num_vertices'], "new_vertices": new_vertices,
-        "old_faces": row['num_faces'], "new_faces": ms.current_mesh().face_number(),
+        "old_faces": row['num_faces'], "new_faces": ms.current_mesh().face_number(), "was_nonmanifold": was_nonmanifold,
     })
     return out_path
 
@@ -96,30 +101,42 @@ def verify_resampled_files(resample_log_filename, verification_filename):
 
     return df_check
 
+####fix: resamle every shape unless it is already clse to the target (+-10%)
+def needs_resample(nv, target=TARGET_VERTICES, tol=0.10):
+    return abs(nv - target) > target * tol
 
-def remesh_outliers(df, out_filename, low_threshold, high_threshold, save_outliers=False):
+def remesh_outliers(df, out_filename, target_v=TARGET_VERTICES, tol=0.10):
       # one-time full copy of the original database; save_resampled() then
     # overwrites just the outlier files in place, so ShapeDatabase_final ends
     # up as a single complete, corrected working database (no separate merge step)
     if not os.path.exists(OUTPUT_DIR):
         shutil.copytree("ShapeDatabase", OUTPUT_DIR)
 
-    low_outliers = df[(df['num_faces'] < low_threshold) | (df['num_vertices'] < low_threshold)]
-    high_outliers = df[(df['num_faces'] > high_threshold) | (df['num_vertices'] > high_threshold)]
+    #low_outliers = df[(df['num_faces'] < low_threshold) | (df['num_vertices'] < low_threshold)]
+    #high_outliers = df[(df['num_faces'] > high_threshold) | (df['num_vertices'] > high_threshold)]
     
-    if save_outliers:
-        combined = pd.concat([low_outliers, high_outliers], ignore_index=True)
-        combined.to_csv("stats/outliers.csv", index=False)
-
-    for _, row in low_outliers.iterrows():
-        ms = refine(row['file'])
-        save_resampled(ms, row)
-
-    for _, row in high_outliers.iterrows():
-        ms = simplify(row['file'])
-        save_resampled(ms, row)
+    to_refine = df[df['num_vertices'] < target_v * (1 - tol)]
+    to_simplify = df[df['num_vertices'] > target_v * (1 + tol)]
+    close_enough = df[(df['num_vertices'] >= target_v * (1 - tol)) & (df['num_vertices'] <= target_v * (1 + tol))]
     
-    print(f"Total outliers: {len(low_outliers)+ len(high_outliers)}")
+    for _, row in to_refine.iterrows():
+        ms, was_nonmanifold = refine(row['file'], target_v)
+        save_resampled(ms, row, was_nonmanifold)
+
+    for _, row in to_simplify.iterrows():
+        ms, was_nonmanifold = simplify(row['file'], target_v)
+        save_resampled(ms, row, was_nonmanifold)
+
+    for _, row in close_enough.iterrows():
+        class_dir = os.path.join(OUTPUT_DIR, row['class'])
+        os.makedirs(class_dir, exist_ok=True)
+        out_path = os.path.join(class_dir, os.path.basename(row['file']))
+        shutil.copy(row['file'], out_path)
+        resample_log.append({"file": row['file'], "class": row['class'], "old_vertices": row['num_vertices'], "new_vertices": row['num_vertices'], "old_faces": row['num_faces'], "new_faces": row['num_faces'], "was_nonmanifold": None,})
+    
+    #print(f"Total outliers: {len(low_outliers)+ len(high_outliers)}")
+    #pd.DataFrame(resample_log).to_csv(out_filename, index=False)
+    print(f"Refined: {len(to_refine)}, Simplified: {len(to_simplify)}, Already close: {len(close_enough)}")
     pd.DataFrame(resample_log).to_csv(out_filename, index=False)
 
 def filter_dataframe(df, sample_size=200):
