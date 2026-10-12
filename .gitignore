@@ -50,6 +50,8 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+ShapeDatabase/
+ShapeDatabase_final/
 
 # Translations
 *.mo
