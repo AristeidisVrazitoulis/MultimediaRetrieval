@@ -50,8 +50,6 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
-ShapeDatabase/
-ShapeDatabase_final/
 
 # Translations
 *.mo
@@ -219,7 +217,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Shape databases (generated data)
 ShapeDatabase/
+ShapeDatabase_aligned/
 ShapeDatabase_final/
 ShapeDatabase_normalized/
 

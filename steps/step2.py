@@ -17,7 +17,7 @@ USE_FILTER = True
 LOW_THRESHOLD = 100
 HIGH_THRESHOLD = 100000
 
-df_sample_size = 200
+df_sample_size = 690   # 69 classes x 10 shapes (smallest class has 15)
 
 REMESHED_DB_NAME = "ShapeDatabase_final"
 NORMALIZED_DB_NAME = "ShapeDatabase_normalized"
@@ -48,8 +48,10 @@ visualize_avg_shape(df_stats)
 df = df_stats
 # we might not need the whole database at first, so we take an even sample
 if USE_FILTER:
-    df = filter_dataframe(df)
-remesh_outliers(df, resample_report_filename, LOW_THRESHOLD, HIGH_THRESHOLD)
+    df = filter_dataframe(df, df_sample_size)
+# resample every shape not within +-10% of the target vertex count (defaults in remeshing.py)
+# shapes that crash pymeshlab are logged in stats/remesh_failed.csv and dropped from df
+df = remesh_outliers(df, resample_report_filename)
 
 
 # Step 2.4
