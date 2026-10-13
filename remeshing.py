@@ -4,12 +4,21 @@ import open3d as o3d
 import numpy as np
 import math
 import os
+import sys
+import json
 import shutil
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
 
 
 # midpoint of the suggested 5K-10K range
-TARGET_VERTICES = 6000          
+TARGET_VERTICES = 6000
 OUTPUT_DIR = "ShapeDatabase_final"
+
+# pymeshlab can crash (segfault in C++, not catchable in Python) on a few meshes,
+# so every remeshing runs in its own process
+N_WORKERS = 6
+FAILED_FILENAME = "stats/remesh_failed.csv"
 
 
 
@@ -105,7 +114,24 @@ def verify_resampled_files(resample_log_filename, verification_filename):
 def needs_resample(nv, target=TARGET_VERTICES, tol=0.10):
     return abs(nv - target) > target * tol
 
-def remesh_outliers(df, out_filename, target_v=TARGET_VERTICES, tol=0.10):
+
+# runs refine/simplify + save_resampled in a separate python process; returns its log
+# entry, or an error message if the process crashed
+def remesh_in_subprocess(row, operation, target_v):
+    row_dict = {"file": row['file'], "class": row['class'],
+                "num_vertices": int(row['num_vertices']), "num_faces": int(row['num_faces'])}
+    code = (f"import sys, json; sys.path.insert(0, {os.path.dirname(os.path.abspath(__file__))!r}); "
+            f"import remeshing as R; ms, nm = R.{operation}({row['file']!r}, {target_v}); "
+            f"R.save_resampled(ms, {row_dict!r}, nm); "
+            f"print('@@' + json.dumps(R.resample_log[-1], default=str))")
+    p = subprocess.run([sys.executable, "-W", "ignore", "-c", code], capture_output=True, text=True)
+    logs = [l[2:] for l in p.stdout.splitlines() if l.startswith("@@")]
+    if p.returncode != 0 or not logs:
+        return None, f"crashed (return code {p.returncode})"
+    return json.loads(logs[0]), None
+
+
+def remesh_outliers(df, out_filename, target_v=TARGET_VERTICES, tol=0.10, failed_filename=FAILED_FILENAME):
       # one-time full copy of the original database; save_resampled() then
     # overwrites just the outlier files in place, so ShapeDatabase_final ends
     # up as a single complete, corrected working database (no separate merge step)
@@ -114,18 +140,24 @@ def remesh_outliers(df, out_filename, target_v=TARGET_VERTICES, tol=0.10):
 
     #low_outliers = df[(df['num_faces'] < low_threshold) | (df['num_vertices'] < low_threshold)]
     #high_outliers = df[(df['num_faces'] > high_threshold) | (df['num_vertices'] > high_threshold)]
-    
+
     to_refine = df[df['num_vertices'] < target_v * (1 - tol)]
     to_simplify = df[df['num_vertices'] > target_v * (1 + tol)]
     close_enough = df[(df['num_vertices'] >= target_v * (1 - tol)) & (df['num_vertices'] <= target_v * (1 + tol))]
-    
-    for _, row in to_refine.iterrows():
-        ms, was_nonmanifold = refine(row['file'], target_v)
-        save_resampled(ms, row, was_nonmanifold)
 
-    for _, row in to_simplify.iterrows():
-        ms, was_nonmanifold = simplify(row['file'], target_v)
-        save_resampled(ms, row, was_nonmanifold)
+    jobs = [(row, "refine") for _, row in to_refine.iterrows()] + \
+           [(row, "simplify") for _, row in to_simplify.iterrows()]
+    failed = []
+    with ThreadPoolExecutor(N_WORKERS) as ex:
+        results = ex.map(lambda job: remesh_in_subprocess(job[0], job[1], target_v), jobs)
+        for (row, operation), (log_entry, error) in zip(jobs, results):
+            if log_entry is not None:
+                resample_log.append(log_entry)
+                print(f"{row['file']}: {log_entry['old_vertices']} -> {log_entry['new_vertices']} vertices", flush=True)
+            else:
+                # shapes we cannot remesh are marked and skipped (see assignment notes)
+                print(f"FAILED {row['file']} ({operation}): {error}", flush=True)
+                failed.append({"file": row['file'], "class": row['class'], "operation": operation, "error": error})
 
     for _, row in close_enough.iterrows():
         class_dir = os.path.join(OUTPUT_DIR, row['class'])
@@ -136,8 +168,12 @@ def remesh_outliers(df, out_filename, target_v=TARGET_VERTICES, tol=0.10):
     
     #print(f"Total outliers: {len(low_outliers)+ len(high_outliers)}")
     #pd.DataFrame(resample_log).to_csv(out_filename, index=False)
-    print(f"Refined: {len(to_refine)}, Simplified: {len(to_simplify)}, Already close: {len(close_enough)}")
+    print(f"Refined: {len(to_refine)}, Simplified: {len(to_simplify)}, Already close: {len(close_enough)}, Failed: {len(failed)}")
     pd.DataFrame(resample_log).to_csv(out_filename, index=False)
+    pd.DataFrame(failed, columns=["file", "class", "operation", "error"]).to_csv(failed_filename, index=False)
+
+    # the shapes that were remeshed (or already fine), without the failed ones
+    return df[~df['file'].isin([f['file'] for f in failed])]
 
 def filter_dataframe(df, sample_size=200):
     ret_df = (df.groupby('class', group_keys=False)

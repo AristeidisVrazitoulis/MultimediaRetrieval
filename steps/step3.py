@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from alignment import align_and_flip, check_alignment
 
 
-USE_FILTER = True   # set False for the full database run
+USE_FILTER = False   # set True to test on the first 30 shapes only
 
 SOURCE_DB = "ShapeDatabase_normalized"   # output of Step 2.5
 ALIGNED_DB = "ShapeDatabase_aligned"     # output of Step 3.1
