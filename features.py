@@ -25,7 +25,7 @@ SEED = 42                    # fixed seed, so the same shape always gives the sa
 HIST_PERCENTILE = 99.9
 HIST_RANGES = {
     "A3": (0.0, np.pi),
-    "D1": (0.0, 0.75),
+    "D1": (0.0, 0.77),
     "D2": (0.0, 1.2),
     "D3": (0.0, 0.6),
     "D4": (0.0, 0.35),
@@ -116,11 +116,9 @@ def compactness(area, volume):
     return area ** 3 / (36 * np.pi * volume ** 2)
 
 
-def principal_axes(points):
-    cov = np.cov(points.T)
-    eigvals, eigvecs = np.linalg.eigh(cov)
-    order = np.argsort(eigvals)[::-1]
-    return eigvals[order], eigvecs[:, order]
+def eigenvalues(points):
+    # eigenvalues of the covariance matrix, largest first
+    return np.linalg.eigvalsh(np.cov(points.T))[::-1]
 
 
 def obb_volume(hull_points):
@@ -189,11 +187,11 @@ def d4_values(p, rng, n=N_SAMPLES):
 
 
 def normalized_histogram(values, name, n_bins=N_BINS):
-    # tech tips 03c (1): h_i / sum h_i, so histograms built from different numbers of
+    # h_i / sum h_i, so histograms built from different numbers of
     # samples are comparable (each bar is a fraction in [0, 1])
     lo, hi = HIST_RANGES[name]
     h, _ = np.histogram(np.clip(values, lo, hi), bins=n_bins, range=(lo, hi))
-    return h / h.sum()
+    return h / h.sum() if h.sum() > 0 else h.astype(float)
 
 
 def shape_property_values(points, center, rng, n=N_SAMPLES):
@@ -222,7 +220,7 @@ def extract_features(path, return_raw=False):
     hull_v, hull_t = convex_hull(v)
     hull_volume = mesh_volume(hull_v, hull_t)
 
-    eigvals, _ = principal_axes(points)
+    eigvals = eigenvalues(points)
     center = points.mean(0)
 
     feats = {
@@ -264,36 +262,39 @@ def print_features(feats):
 # [0, pi]). Fewer samples per shape than in extract_features are enough for a percentile
 # and keep memory low. Run once, then copy the result into HIST_RANGES
 def calibrate_hist_ranges(db, n_samples=10_000):
-    values = {name: [] for name in HIST_FEATURES}
+    values = {"D1": [], "D2": [], "D3": [], "D4": []}
     for path in glob.glob(f"{db}/*/*.obj"):
         rng = np.random.default_rng(SEED)
-        m = load_mesh(path).current_mesh()
+        ms = load_mesh(path)   # keep the MeshSet alive: current_mesh() is only valid while it exists
+        m = ms.current_mesh()
         points = sample_surface(m.vertex_matrix(), m.face_matrix(), N_SURFACE_POINTS, rng)
-        for name, x in shape_property_values(points, points.mean(0), rng, n_samples).items():
-            values[name].append(x)
+        values["D1"].append(d1_values(points, points.mean(0)))
+        values["D2"].append(d2_values(points, rng, n_samples))
+        values["D3"].append(d3_values(points, rng, n_samples))
+        values["D4"].append(d4_values(points, rng, n_samples))
 
     ranges = {"A3": (0.0, np.pi)}
-    for name in ["D1", "D2", "D3", "D4"]:
-        ranges[name] = (0.0, float(np.percentile(np.concatenate(values[name]), HIST_PERCENTILE)))
+    for name, x in values.items():
+        ranges[name] = (0.0, float(np.percentile(np.concatenate(x), HIST_PERCENTILE)))
     return ranges
 
 
 # compute all descriptors for every shape and save them in a table
 # (one row per shape, one column per feature)
-def compute_database_features(db, out_filename, failed_filename):
-    rows, failed = [], []
+def compute_database_features(db, out_filename):
+    rows, n_failed = [], 0
     for path in glob.glob(f"{db}/*/*.obj"):
         try:
             rows.append(extract_features(path))
         except Exception as e:
             # shapes we cannot handle are marked and skipped
-            failed.append({"file": path, "error": str(e)})
+            print(f"FAILED {path}: {e}")
+            n_failed += 1
 
     df = pd.DataFrame(rows)
     os.makedirs(os.path.dirname(out_filename), exist_ok=True)
     df.to_csv(out_filename, index=False)
-    pd.DataFrame(failed, columns=["file", "error"]).to_csv(failed_filename, index=False)
-    print(f"Computed features for {len(rows)} shapes, failed: {len(failed)}")
+    print(f"Computed features for {len(rows)} shapes, failed: {n_failed}")
     return df
 
 
@@ -302,7 +303,8 @@ def compute_database_features(db, out_filename, failed_filename):
 def show_shape_features(path, features_filename):
     if os.path.exists(features_filename):
         df = pd.read_csv(features_filename)
-        match = df[df["file"].apply(os.path.normpath) == os.path.normpath(path)]
+        # compare with "/" separators: the table may have been written on Windows or macOS
+        match = df[df["file"].str.replace("\\", "/") == path.replace("\\", "/")]
         if len(match):
             print("(from " + features_filename + ")")
             print_features(match.iloc[0])

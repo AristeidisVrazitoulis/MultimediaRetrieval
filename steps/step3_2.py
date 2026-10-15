@@ -11,6 +11,7 @@ from mesh_vizualizer import visualize_shape
 
 
 CALIBRATE_RANGES = False  # set True once to print the histogram ranges to copy into HIST_RANGES
+                          # (then set it back to False: features are computed with the CURRENT HIST_RANGES)
 COMPUTE_FEATURES = True   # set False to reuse stats/features.csv (computed anyway if missing)
 SHOW_EXTREMES = False     # set True to open the lowest/highest shape of each descriptor in the viewer
 
@@ -24,7 +25,6 @@ OTHER_CLASS = "Bicycle/D00904.obj"
 
 STATS_SOURCE_FOLDER = "stats/"
 features_filename = STATS_SOURCE_FOLDER + "features.csv"
-failed_filename = STATS_SOURCE_FOLDER + "features_failed.csv"
 extremes_filename = STATS_SOURCE_FOLDER + "feature_extremes.csv"
 separation_filename = STATS_SOURCE_FOLDER + "feature_class_separation.csv"
 unreliable_volume_filename = STATS_SOURCE_FOLDER + "feature_unreliable_volume.csv"
@@ -35,11 +35,11 @@ unreliable_volume_filename = STATS_SOURCE_FOLDER + "feature_unreliable_volume.cs
 # Copy the printed values into HIST_RANGES in features.py before computing the features
 if CALIBRATE_RANGES:
     print(calibrate_hist_ranges(ALIGNED_DB))
-
+    
 # Compute all descriptors for every shape and save them in a table
 # (one row per shape, one column per feature)
 if COMPUTE_FEATURES or not os.path.exists(features_filename):
-    compute_database_features(ALIGNED_DB, features_filename, failed_filename)
+    compute_database_features(ALIGNED_DB, features_filename)
 
 # Load a given shape and print its features
 # (retrieved from the table if already computed, extracted otherwise)
@@ -67,7 +67,7 @@ print(df_separation)
 # match what we see in the viewer (thin vs bulky, round vs box-like, ...)
 df_extremes = scalar_extremes(df_features)
 df_extremes.to_csv(extremes_filename, index=False)
-print(df_extremes)
+# print(df_extremes)
 if SHOW_EXTREMES:
     for _, r in df_extremes.iterrows():
         print(f"{r['descriptor']} {r['kind']}: {r['value']:.4f}  {r['file']}")
