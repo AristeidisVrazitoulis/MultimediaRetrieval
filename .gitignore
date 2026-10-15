@@ -220,6 +220,9 @@ __marimo__/
 ShapeDatabase/
 ShapeDatabase_final/
 ShapeDatabase_normalized/
+.DS_Store
+ShapeDatabase_remeshed/
+ShapeDatabase_aligned/
 
 .venv310/
 .vscode/
