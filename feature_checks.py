@@ -19,7 +19,7 @@ def bin_centers(name):
     return (edges[:-1] + edges[1:]) / 2
 
 
-# tech tips 03c (3), Figures 1-2: one subplot per class, one line per shape.
+# Figures 1-2: one subplot per class, one line per shape.
 # Good feature: lines grouped within a plot, different "signatures" across plots
 def plot_histograms_per_class(df, name, classes=None, n_cols=6):
     classes = classes or sorted(df["class"].unique())
@@ -41,7 +41,7 @@ def plot_histograms_per_class(df, name, classes=None, n_cols=6):
     plt.close(fig)
 
 
-# tech tips 03b (2): two shapes of the same class + one of a different class.
+# two shapes of the same class + one of a different class.
 # The first two histograms should be similar, and both different from the third
 def compare_three_shapes(df, same_a, same_b, other):
     rows = [df[df["file"].str.replace("\\", "/").str.endswith(s)].iloc[0] for s in (same_a, same_b, other)]
@@ -61,7 +61,7 @@ def compare_three_shapes(df, same_a, same_b, other):
     return out
 
 
-# tech tips 03b (2): for each scalar descriptor, the shapes with the lowest and highest
+# for each scalar descriptor, the shapes with the lowest and highest
 # value. Open them in the viewer: the values should match what you see
 # (thin vs bulky for eccentricity, box-like vs round for rectangularity, ...)
 def scalar_extremes(df, n=2):
@@ -74,19 +74,19 @@ def scalar_extremes(df, n=2):
     return pd.DataFrame(rows)
 
 
-# a number to go with the plots of 03c (3): average L1 distance between histograms of
-# shapes in the same class vs in different classes. Ratio < 1 means the descriptor
-# separates classes; close to 1 means it does not
+# a number to go with the plots, using each class "signature" (its average
+# histogram): within = average L1 distance of a shape to the signature of its own class,
+# between = average L1 distance between the signatures of different classes.
+# Ratio < 1 means the descriptor separates classes; close to 1 means it does not
 def within_vs_between(df):
-    labels = df["class"].to_numpy()
-    same = labels[:, None] == labels[None, :]
-    off_diag = ~np.eye(len(df), dtype=bool)
     rows = []
     for name in HIST_FEATURES:
-        H = hist_matrix(df, name)
-        dist = np.abs(H[:, None, :] - H[None, :, :]).sum(2)
-        within = dist[same & off_diag].mean()
-        between = dist[~same].mean()
+        cols = [f"{name}_{i}" for i in range(N_BINS)]
+        signatures = df.groupby("class")[cols].mean()
+        H, S = df[cols].to_numpy(), signatures.loc[df["class"]].to_numpy()
+        within = np.abs(H - S).sum(1).mean()
+        C = signatures.to_numpy()
+        between = np.abs(C[:, None, :] - C[None, :, :]).sum(2)[~np.eye(len(C), dtype=bool)].mean()
         rows.append({"descriptor": name, "within_class": within, "between_class": between, "ratio": within / between})
     return pd.DataFrame(rows)
 
