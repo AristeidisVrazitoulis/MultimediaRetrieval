@@ -1,5 +1,7 @@
 import os
+import glob
 import numpy as np
+import pandas as pd
 import open3d as o3d
 import pymeshlab as pml
 
@@ -8,14 +10,19 @@ import pymeshlab as pml
 # - 6 global (scalar) descriptors: area, compactness, rectangularity, diameter, convexity, eccentricity
 # - 5 shape property distributions (histograms): A3, D1, D2, D3, D4
 
-N_BINS = 20                  # B, see README/report for the argument (B << sqrt(N))
+N_BINS = 20                  # B
 N_SURFACE_POINTS = 10000     # points sampled uniformly on the surface, pool for the histograms
-N_SAMPLES = 1_000_000        # random tuples per histogram (tech tips 03c: ~100 per dimension for D3 -> 100^3)
+N_SAMPLES = 1_000_000        # random tuples per histogram ( ~100 per dimension for D3 -> 100^3)
 SEED = 42                    # fixed seed, so the same shape always gives the same features
 
 # fixed ranges for the histograms: every shape must use the SAME bins, otherwise the
 # histograms are not comparable. Shapes are normalized to the unit cube, so the
 # ranges are bounded; values outside are clipped into the first/last bin.
+# A3 is an angle, so [0, pi]. D1-D4: upper bound = HIST_PERCENTILE-th percentile of the
+# values over the whole database, computed with calibrate_hist_ranges() (see step3_2.py)
+# TODO: D1-D4 below are provisional (calibrated on 30 shapes only), replace them with
+# the output of calibrate_hist_ranges() on the full aligned database
+HIST_PERCENTILE = 99.9
 HIST_RANGES = {
     "A3": (0.0, np.pi),
     "D1": (0.0, 0.75),
@@ -27,23 +34,30 @@ SCALAR_FEATURES = ["area", "volume", "compactness", "rectangularity", "diameter"
 HIST_FEATURES = list(HIST_RANGES.keys())
 
 
-# ---------------------------------------------------------------- mesh loading / repair
 
 def load_mesh(path):
-    # merge duplicated vertices: OBJ files often split vertices (normals/uvs), which
-    # makes every edge look like a boundary edge
+    # only remove isolated vertices (not used by any triangle): they are not part of
+    # the surface, but would end up in the convex hull and in the diameter.
+    # The geometry itself is left untouched
     ms = pml.MeshSet()
     ms.load_new_mesh(path)
-    ms.meshing_merge_close_vertices()
-    ms.meshing_remove_duplicate_faces()
     ms.meshing_remove_unreferenced_vertices()
     return ms
 
 
 def repair_for_volume(ms):
-    # tech tips 03b: the volume formula needs (1) consistently oriented triangles and
+    # the volume formula needs (1) consistently oriented triangles and
     # (2) no holes. We fix both with pymeshlab on a copy, used ONLY for the volume:
     # area and sampling use the original surface (hole-filling triangles are not real surface)
+
+    # holes are detected through shared edges, which only works if adjacent triangles share
+    # the same vertex. Merging vertices closer than 1% of the bbox diagonal (pymeshlab default)
+    # also closes small cracks between parts that almost touch; it collapses some very thin
+    # triangles too, which is why we do it only here and not on the mesh used for the area
+    ms.meshing_merge_close_vertices()
+    ms.meshing_remove_duplicate_faces()
+    boundary_before = count_boundary_edges(ms.current_mesh().face_matrix())
+
     ms.meshing_repair_non_manifold_edges()
     try:
         ms.meshing_re_orient_faces_coherently()
@@ -54,7 +68,7 @@ def repair_for_volume(ms):
     except pml.PyMeshLabException:
         pass
     m = ms.current_mesh()
-    return m.vertex_matrix(), m.face_matrix()
+    return m.vertex_matrix(), m.face_matrix(), boundary_before
 
 
 def count_boundary_edges(t):
@@ -64,7 +78,6 @@ def count_boundary_edges(t):
     return int((counts == 1).sum())
 
 
-# ---------------------------------------------------------------- basic geometry
 
 def triangle_areas(v, t):
     tri = v[t]
@@ -72,7 +85,7 @@ def triangle_areas(v, t):
 
 
 def mesh_volume(v, t):
-    # tech tips 03b: V = 1/6 |sum (v1 x v2) . v3|, with vi = xi - o (o = reference point)
+    # V = 1/6 |sum (v1 x v2) . v3|, with vi = xi - o (o = reference point)
     o = v.mean(0)
     a, b, c = v[t[:, 0]] - o, v[t[:, 1]] - o, v[t[:, 2]] - o
     return abs(np.einsum('ij,ij->i', np.cross(a, b), c).sum()) / 6.0
@@ -86,7 +99,7 @@ def convex_hull(v):
 
 def sample_surface(v, t, n, rng):
     # area-weighted uniform sampling on the surface: the distributions are very sensitive
-    # to a good spread of the samples (tech tips 03c), while the vertices of our meshes are
+    # to a good spread of the samples, while the vertices of our meshes are
     # not uniformly spread (decimation/subdivision leave dense and sparse regions)
     areas = triangle_areas(v, t)
     tri_idx = rng.choice(len(t), size=n, p=areas / areas.sum())
@@ -97,7 +110,6 @@ def sample_surface(v, t, n, rng):
     return w0[:, None] * tri[:, 0] + w1[:, None] * tri[:, 1] + w2[:, None] * tri[:, 2]
 
 
-# ---------------------------------------------------------------- global descriptors
 
 def compactness(area, volume):
     # 3D version of P^2 / (4 pi A): A^3 / (36 pi V^2), equal to 1 for a sphere, > 1 otherwise
@@ -132,10 +144,10 @@ def diameter(points):
     return best
 
 
-# ---------------------------------------------------------------- shape property distributions
+
 
 def random_tuples(n_points, k, n, rng):
-    # tech tips 03c: draw n random k-tuples of points out of the n_points^k possibilities,
+    # draw n random k-tuples of points out of the n_points^k possibilities,
     # discarding tuples that use the same point twice. Drawing each index independently
     # is what the nested loop in the tech tips does (a fresh random() at every level)
     idx = rng.integers(0, n_points, size=(n, k))
@@ -184,28 +196,26 @@ def normalized_histogram(values, name, n_bins=N_BINS):
     return h / h.sum()
 
 
-def shape_property_values(points, center, rng):
+def shape_property_values(points, center, rng, n=N_SAMPLES):
     return {
-        "A3": a3_values(points, rng),
+        "A3": a3_values(points, rng, n),
         "D1": d1_values(points, center),
-        "D2": d2_values(points, rng),
-        "D3": d3_values(points, rng),
-        "D4": d4_values(points, rng),
+        "D2": d2_values(points, rng, n),
+        "D3": d3_values(points, rng, n),
+        "D4": d4_values(points, rng, n),
     }
 
 
-# ---------------------------------------------------------------- full extraction
 
 def extract_features(path, return_raw=False):
     rng = np.random.default_rng(SEED)
     ms = load_mesh(path)
     v, t = ms.current_mesh().vertex_matrix(), ms.current_mesh().face_matrix()
 
-    boundary_before = count_boundary_edges(t)
     area = triangle_areas(v, t).sum()
     points = sample_surface(v, t, N_SURFACE_POINTS, rng)
 
-    vr, tr = repair_for_volume(ms)
+    vr, tr, boundary_before = repair_for_volume(ms)
     boundary_after = count_boundary_edges(tr)
     volume = mesh_volume(vr, tr)
 
@@ -247,3 +257,54 @@ def print_features(feats):
     for name in HIST_FEATURES:
         h = [feats[f"{name}_{i}"] for i in range(N_BINS)]
         print(f"  {name:15s} " + " ".join(f"{x:.2f}" for x in h))
+
+
+# choose the histogram ranges from the data: for D1-D4 the upper bound is the
+# HIST_PERCENTILE-th percentile of the values over all shapes of the database (A3 keeps
+# [0, pi]). Fewer samples per shape than in extract_features are enough for a percentile
+# and keep memory low. Run once, then copy the result into HIST_RANGES
+def calibrate_hist_ranges(db, n_samples=10_000):
+    values = {name: [] for name in HIST_FEATURES}
+    for path in glob.glob(f"{db}/*/*.obj"):
+        rng = np.random.default_rng(SEED)
+        m = load_mesh(path).current_mesh()
+        points = sample_surface(m.vertex_matrix(), m.face_matrix(), N_SURFACE_POINTS, rng)
+        for name, x in shape_property_values(points, points.mean(0), rng, n_samples).items():
+            values[name].append(x)
+
+    ranges = {"A3": (0.0, np.pi)}
+    for name in ["D1", "D2", "D3", "D4"]:
+        ranges[name] = (0.0, float(np.percentile(np.concatenate(values[name]), HIST_PERCENTILE)))
+    return ranges
+
+
+# compute all descriptors for every shape and save them in a table
+# (one row per shape, one column per feature)
+def compute_database_features(db, out_filename, failed_filename):
+    rows, failed = [], []
+    for path in glob.glob(f"{db}/*/*.obj"):
+        try:
+            rows.append(extract_features(path))
+        except Exception as e:
+            # shapes we cannot handle are marked and skipped
+            failed.append({"file": path, "error": str(e)})
+
+    df = pd.DataFrame(rows)
+    os.makedirs(os.path.dirname(out_filename), exist_ok=True)
+    df.to_csv(out_filename, index=False)
+    pd.DataFrame(failed, columns=["file", "error"]).to_csv(failed_filename, index=False)
+    print(f"Computed features for {len(rows)} shapes, failed: {len(failed)}")
+    return df
+
+
+# load a given shape and print its features: read them from the table if they were
+# already computed, otherwise extract them now
+def show_shape_features(path, features_filename):
+    if os.path.exists(features_filename):
+        df = pd.read_csv(features_filename)
+        match = df[df["file"].apply(os.path.normpath) == os.path.normpath(path)]
+        if len(match):
+            print("(from " + features_filename + ")")
+            print_features(match.iloc[0])
+            return
+    print_features(extract_features(path))
