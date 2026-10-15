@@ -23,13 +23,14 @@ def normalize(path, out):
     v = v / (v.max(0) - v.min(0)).max()    # scale to fit a unit cube
     m.vertices = o3d.utility.Vector3dVector(v)
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    o3d.io.write_triangle_mesh(out, m)
+    o3d.io.write_triangle_mesh(out, m, write_vertex_normals=False,
+                           write_vertex_colors=False, write_triangle_uvs=False)
 
 
 def normalize_database(df, source_dir, normalized_dir):
     # derive paths from SOURCE_DIR + class + filename (same pattern as
     # save_resampled in remeshing.py) rather than df['file'] directly, so this
-    # works whether df is the original shape_statistics.csv or a re-scan of
+    # works whether df is original_db_shape_stats.csv or a re-scan of
     # ShapeDatabase_final - either way we always resolve against the current
     # corrected database, not whatever root folder happened to be in df['file']
     rows = []
@@ -65,6 +66,6 @@ def check_normalization(df_all, out_filename):
 
 
 if __name__ == '__main__':
-    df = pd.read_csv("shape_statistics.csv")
+    df = pd.read_csv("stats/original_db_shape_stats.csv")
     df_all = normalize_database(df, SOURCE_DIR, NORMALIZED_DIR)
-    check_normalization(df_all, "normalization_report.csv")
+    check_normalization(df_all, "stats/normalization_check.csv")

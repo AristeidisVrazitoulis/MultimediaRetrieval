@@ -119,7 +119,7 @@ def visualize_shape(filename):
 # mesh.compute_vertex_normals()
 if __name__ == '__main__':
     # For step 1
-    # export_media_to_csv("ShapeDatabase", "shape_statistics.csv")
+    # export_media_to_csv("ShapeDatabase", "stats/original_db_shape_stats.csv")
     pass
     
 

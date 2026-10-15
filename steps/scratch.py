@@ -5,7 +5,7 @@ import pandas as pd
 
 STATS_SOURCE_FOLDER = "stats/"
 
-initial_stats_filename = STATS_SOURCE_FOLDER+"shape_statistics.csv"
+initial_stats_filename = STATS_SOURCE_FOLDER+"original_db_shape_stats.csv"
 df = pd.read_csv(initial_stats_filename)
 
 

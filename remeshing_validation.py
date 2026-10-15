@@ -5,7 +5,7 @@ from mesh_vizualizer import open_mesh, visualize_mesh
 
 def compare_objects(object_filename):
     old_mesh = open_mesh(f"ShapeDatabase/{object_filename}")
-    resampled_mesh = open_mesh(f"ShapeDatabase_final/{object_filename}")
+    resampled_mesh = open_mesh(f"ShapeDatabase_remeshed/{object_filename}")
 
 
     old_mesh.compute_vertex_normals()
