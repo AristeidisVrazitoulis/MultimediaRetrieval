@@ -17,7 +17,7 @@ USE_FILTER = False
 TARGET_VERTICES = 6000
 TOLERANCE = 0.10    # -> band [5400, 6600]
 
-df_sample_size = 200
+df_sample_size = 690   # 69 classes x 10 shapes (smallest class has 15)
 
 REMESHED_DB_NAME = "ShapeDatabase_remeshed"
 NORMALIZED_DB_NAME = "ShapeDatabase_normalized"
@@ -53,7 +53,7 @@ visualize_avg_shape(df)
 
 # we might not need the whole database at first, so we take an even sample
 if USE_FILTER:
-    df = filter_dataframe(df)
+    df = filter_dataframe(df, df_sample_size)
 remesh_outliers(df, remeshing_log_filename, TARGET_VERTICES, TOLERANCE)
 
 
