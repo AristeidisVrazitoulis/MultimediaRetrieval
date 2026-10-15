@@ -3,15 +3,13 @@ import os
 import glob
 import numpy as np
 from tqdm import tqdm
-import pandas as pd
-
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from alignment import align_and_flip, check_alignment
 
 
-USE_FILTER = True   # set False for the full database run
+USE_FILTER = False   # set True to test on the first 30 shapes only
 
 SOURCE_DB = "ShapeDatabase_normalized"   # output of Step 2.5
 ALIGNED_DB = "ShapeDatabase_aligned"     # output of Step 3.1
@@ -36,6 +34,7 @@ for path in tqdm(files):
 print("Verifying alignment...")
 aligned_files = glob.glob(f"{ALIGNED_DB}/*/*.obj")
 
+import pandas as pd
 rows = []
 for p in tqdm(aligned_files):
     off_diag = check_alignment(p)

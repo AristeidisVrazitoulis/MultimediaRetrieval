@@ -217,7 +217,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Shape databases (generated data)
 ShapeDatabase/
+ShapeDatabase_aligned/
 ShapeDatabase_final/
 ShapeDatabase_normalized/
 .DS_Store
@@ -226,3 +228,4 @@ ShapeDatabase_aligned/
 
 .venv310/
 .vscode/
+
