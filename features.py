@@ -20,15 +20,13 @@ SEED = 42                    # fixed seed, so the same shape always gives the sa
 # ranges are bounded; values outside are clipped into the first/last bin.
 # A3 is an angle, so [0, pi]. D1-D4: upper bound = HIST_PERCENTILE-th percentile of the
 # values over the whole database, computed with calibrate_hist_ranges() (see step3_2.py)
-# TODO: D1-D4 below are provisional (calibrated on 30 shapes only), replace them with
-# the output of calibrate_hist_ranges() on the full aligned database
 HIST_PERCENTILE = 99.9
 HIST_RANGES = {
     "A3": (0.0, np.pi),
-    "D1": (0.0, 0.77),
-    "D2": (0.0, 1.2),
-    "D3": (0.0, 0.6),
-    "D4": (0.0, 0.35),
+    "D1": (0.0, 0.75),
+    "D2": (0.0, 1.09),
+    "D3": (0.0, 0.57),
+    "D4": (0.0, 0.34),
 }
 SCALAR_FEATURES = ["area", "volume", "compactness", "rectangularity", "diameter", "convexity", "eccentricity"]
 HIST_FEATURES = list(HIST_RANGES.keys())
@@ -121,15 +119,10 @@ def eigenvalues(points):
     return np.linalg.eigvalsh(np.cov(points.T))[::-1]
 
 
-def obb_volume(hull_points):
-    # the PCA box alone is not enough: when two eigenvalues are (almost) equal, e.g. a cube
-    # or a square rod, the PCA axes are arbitrary and the box comes out rotated and too big.
-    # So we take the smallest of: Open3D's minimal OBB and the axis-aligned box (which is
-    # the PCA box, since shapes are already PCA-aligned in Step 3.1)
-    aabb = np.prod(hull_points.max(0) - hull_points.min(0))
-    pts = o3d.utility.Vector3dVector(hull_points)
-    minimal = o3d.geometry.OrientedBoundingBox.create_from_points_minimal(pts).volume()
-    return min(aabb, minimal)
+def obb_volume(points):
+    # shapes are PCA-aligned in Step 3.1, so the OBB is the axis-aligned box
+    # after alignment, OBB and AABB are identical)
+    return np.prod(points.max(0) - points.min(0))
 
 
 def diameter(points):
