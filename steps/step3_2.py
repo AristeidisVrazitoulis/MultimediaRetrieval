@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from features import compute_database_features, show_shape_features, calibrate_hist_ranges, HIST_FEATURES
 from feature_checks import (plot_histograms_per_class, compare_three_shapes, scalar_extremes,
-                            within_vs_between, volume_reliability)
+                            within_vs_between, volume_reliability, validate_on_primitives)
 from mesh_vizualizer import visualize_shape
 
 
@@ -31,6 +31,9 @@ unreliable_volume_filename = STATS_SOURCE_FOLDER + "feature_unreliable_volume.cs
 
 
 # Step 3.2
+# Check the descriptors on simple shapes with known values: computed (expected)
+# validate_on_primitives()
+
 # Choose the histogram ranges: percentile of the values over the whole database.
 # Copy the printed values into HIST_RANGES in features.py before computing the features
 if CALIBRATE_RANGES:
