@@ -19,9 +19,9 @@ ALIGNED_DB = "ShapeDatabase_aligned"     # output of Step 3.1 (fully normalized 
 EXAMPLE_SHAPE = "Bird/m32.obj"
 
 # two shapes of the same class + one of a different class 
-SAME_CLASS_A = "Car/m1513.obj"
-SAME_CLASS_B = "Car/m1523.obj"
-OTHER_CLASS = "Bicycle/D00904.obj"
+SAME_CLASS_A = "Guitar/D00335.obj"
+SAME_CLASS_B = "Guitar/D00464.obj"
+OTHER_CLASS = "Mug/D00427.obj"
 
 STATS_SOURCE_FOLDER = "stats/"
 features_filename = STATS_SOURCE_FOLDER + "features.csv"
