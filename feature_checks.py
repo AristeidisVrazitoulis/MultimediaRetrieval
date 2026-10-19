@@ -1,12 +1,35 @@
 import os
 import math
+import tempfile
 import numpy as np
 import pandas as pd
+import open3d as o3d
 import matplotlib.pyplot as plt
 
-from features import N_BINS, HIST_RANGES, HIST_FEATURES, SCALAR_FEATURES
+from features import N_BINS, HIST_RANGES, HIST_FEATURES, SCALAR_FEATURES, extract_features
 
 FIGURES_DIR = "stats/figures_features"
+
+
+# check the descriptors on simple shapes whose values we know
+# (cube of side 1, sphere of radius 0.5, rod 1 x 0.1 x 0.1). Prints computed (expected)
+def validate_on_primitives():
+    cube = o3d.geometry.TriangleMesh.create_box(1, 1, 1).subdivide_midpoint(4)
+    sphere = o3d.geometry.TriangleMesh.create_sphere(0.5, resolution=60)
+    rod = o3d.geometry.TriangleMesh.create_box(1, 0.1, 0.1).subdivide_midpoint(4)
+    expected = {
+        "cube":   (cube,   {"compactness": 216 / (36 * np.pi), "rectangularity": 1, "diameter": np.sqrt(3), "convexity": 1, "eccentricity": 1}),
+        "sphere": (sphere, {"compactness": 1, "rectangularity": np.pi / 6, "diameter": 1, "convexity": 1, "eccentricity": 1}),
+        "rod":    (rod,    {"compactness": 0.42 ** 3 / (36 * np.pi * 0.01 ** 2), "rectangularity": 1, "diameter": np.sqrt(1.02), "convexity": 1, "eccentricity": None}),
+    }
+    rows = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        for name, (mesh, values) in expected.items():
+            path = os.path.join(tmp, name + ".obj")
+            o3d.io.write_triangle_mesh(path, mesh)
+            feats = extract_features(path)
+            rows[name] = {k: f"{feats[k]:.3f} ({'>> 1' if v is None else f'{v:.3f}'})" for k, v in values.items()}
+    print(pd.DataFrame(rows).T.to_string())
 
 
 def hist_matrix(df, name):
