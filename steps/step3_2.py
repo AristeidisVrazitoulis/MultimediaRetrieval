@@ -4,7 +4,7 @@ import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from features import compute_database_features, show_shape_features, calibrate_hist_ranges, HIST_FEATURES
+from features import compute_database_features, show_shape_features, calibrate_hist_ranges, HIST_FEATURES, SCALAR_FEATURES
 from feature_checks import (plot_histograms_per_class, compare_three_shapes, scalar_extremes,
                             within_vs_between, volume_reliability, validate_on_primitives)
 from mesh_vizualizer import visualize_shape
@@ -12,7 +12,7 @@ from mesh_vizualizer import visualize_shape
 
 CALIBRATE_RANGES = False  # set True once to print the histogram ranges to copy into HIST_RANGES
                           # (then set it back to False: features are computed with the CURRENT HIST_RANGES)
-COMPUTE_FEATURES = True   # set False to reuse stats/features.csv (computed anyway if missing)
+COMPUTE_FEATURES = False   # set False to reuse stats/features.csv (computed anyway if missing)
 SHOW_EXTREMES = False     # set True to open the lowest/highest shape of each descriptor in the viewer
 
 ALIGNED_DB = "ShapeDatabase_aligned"     # output of Step 3.1 (fully normalized shapes)
@@ -49,8 +49,11 @@ if COMPUTE_FEATURES or not os.path.exists(features_filename):
 show_shape_features(os.path.join(ALIGNED_DB, EXAMPLE_SHAPE), features_filename)
 
 
-# Checking the features 
+# Checking the features
 df_features = pd.read_csv(features_filename)
+
+# Min, median and max of each scalar descriptor over the database
+print(df_features[SCALAR_FEATURES].describe().loc[["min", "50%", "max"]].T)
 
 # Histograms per class: curves should be grouped within each plot
 # and look different across plots. Saved in stats/figures_features/

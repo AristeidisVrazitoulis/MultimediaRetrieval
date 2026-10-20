@@ -84,13 +84,24 @@ def compare_three_shapes(df, same_a, same_b, other):
     return out
 
 
+VOLUME_FEATURES = ["volume", "compactness", "rectangularity", "convexity"]
+
+
+# volume-based descriptors are only trustworthy when the repaired mesh is closed and the
+# values are physically possible (convexity <= 1, compactness >= 1)
+def reliable_volume(df):
+    return (df["boundary_edges_after"] == 0) & (df["convexity"] <= 1) & (df["compactness"] >= 1)
+
+
 # for each scalar descriptor, the shapes with the lowest and highest
 # value. Open them in the viewer: the values should match what you see
-# (thin vs bulky for eccentricity, box-like vs round for rectangularity, ...)
+# (thin vs bulky for eccentricity, box-like vs round for rectangularity, ...).
+# Volume-based descriptors only consider shapes with a reliable volume
 def scalar_extremes(df, n=2):
     rows = []
+    reliable = df[reliable_volume(df)]
     for name in SCALAR_FEATURES:
-        s = df.sort_values(name)
+        s = (reliable if name in VOLUME_FEATURES else df).sort_values(name)
         for kind, part in (("lowest", s.head(n)), ("highest", s.tail(n))):
             for _, r in part.iterrows():
                 rows.append({"descriptor": name, "kind": kind, "value": r[name], "file": r["file"]})
@@ -114,11 +125,20 @@ def within_vs_between(df):
     return pd.DataFrame(rows)
 
 
+# shapes whose volume-based descriptors are not reliable (see reliable_volume)
 def volume_reliability(df):
-    # volume-based descriptors are only trustworthy when the repaired mesh is closed
-    # and the shape is not "more than convex"
-    closed = df["boundary_edges_after"] == 0
-    bad_convexity = df["convexity"] > 1.0
-    print(f"closed after repair: {closed.sum()}/{len(df)}")
-    print(f"convexity > 1 (volume overestimated): {bad_convexity.sum()}")
-    return df[~closed | bad_convexity][["file", "boundary_edges_before", "boundary_edges_after", "volume", "convexity"]]
+    b = df["boundary_edges_after"]
+    open_edges = b[b > 0]
+    big_holes = df[b > 200]
+    share = (big_holes["class"].value_counts() / df["class"].value_counts()).dropna()
+    print(f"closed after repair: {(b == 0).sum()}/{len(df)}")
+    print(f"open after repair: {len(open_edges)}, median boundary edges {open_edges.median():.0f}, "
+          f"<= 50 edges: {(open_edges <= 50).sum()}, > 200 edges: {len(big_holes)}")
+    print("classes with > 200 boundary edges in more than half of their shapes:",
+          share[share > 0.5].sort_values(ascending=False).round(2).to_dict())
+    over_convex = df[df["convexity"] > 1]
+    print(f"convexity > 1 (volume overestimated): {len(over_convex)}", over_convex["class"].value_counts().to_dict())
+    under_compact = df[df["compactness"] < 1]
+    print(f"compactness < 1: {len(under_compact)}", dict(zip(under_compact["file"], under_compact["compactness"].round(3))))
+    print(f"reliable volume: {reliable_volume(df).sum()}/{len(df)}")
+    return df[~reliable_volume(df)][["file", "boundary_edges_before", "boundary_edges_after", "volume", "compactness", "convexity"]]
