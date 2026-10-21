@@ -19,7 +19,6 @@ resample_log = []
 def clean_mesh(ms):
     # fixes non-manifold geometry (duplicate/degenerate faces, non-manifold
     # edges/vertices) that would otherwise crash subdivision/decimation filters.
-    # affects ~31% of our low-outlier shapes (29/94), so this is required, not optional.
     was_nonmanifold = not ms.get_topological_measures()['is_mesh_two_manifold']
     # unreferenced vertices would inflate vertex_number() and stop refinement too early
     ms.meshing_remove_unreferenced_vertices()

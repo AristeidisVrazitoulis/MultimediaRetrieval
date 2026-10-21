@@ -43,23 +43,23 @@ normalization_check_filename = STATS_SOURCE_FOLDER+"normalization_check.csv"
 df = pd.read_csv(original_db_stats_filename)
 
 
-plot_stats(df) 
-# Display average object
-visualize_avg_shape(df)
+# plot_stats(df) 
+# # Display average object
+# visualize_avg_shape(df)
 
 
 # Step 2.3
 # As a result, we have a new db 'ShapeDatabase_remeshed'
 
 # we might not need the whole database at first, so we take an even sample
-if USE_FILTER:
-    df = filter_dataframe(df, df_sample_size)
-remesh_outliers(df, remeshing_log_filename, TARGET_VERTICES, TOLERANCE)
+# if USE_FILTER:
+#     df = filter_dataframe(df, df_sample_size)
+# remesh_outliers(df, remeshing_log_filename, TARGET_VERTICES, TOLERANCE)
 
 
 # Step 2.4
 # Export again the whole stats from the new db and visualize the differences
-export_media_to_csv(REMESHED_DB_NAME, remeshed_db_stats_filename)
+# export_media_to_csv(REMESHED_DB_NAME, remeshed_db_stats_filename)
 
 
 df_updated_stats = pd.read_csv(remeshed_db_stats_filename)
@@ -82,9 +82,3 @@ df_all = normalize_database(df, REMESHED_DB_NAME, NORMALIZED_DB_NAME)
 check_normalization(df_all, normalization_check_filename)
 
 
-
-
-
-# low outliers:  1754
-# high outliers:  362
-# total outliers: 2116
