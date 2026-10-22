@@ -10,24 +10,10 @@ import pymeshlab as pml
 # - 6 global (scalar) descriptors: area, compactness, rectangularity, diameter, convexity, eccentricity
 # - 5 shape property distributions (histograms): A3, D1, D2, D3, D4
 
-N_BINS = 20                  # B
-N_SURFACE_POINTS = 10000     # points sampled uniformly on the surface, pool for the histograms
-N_SAMPLES = 1_000_000        # random tuples per histogram ( ~100 per dimension for D3 -> 100^3)
-SEED = 42                    # fixed seed, so the same shape always gives the same features
+# parameters (B, sample counts, seed, histogram ranges) are in config.py
+from .config import N_BINS, N_SURFACE_POINTS, N_SAMPLES, SEED, HIST_PERCENTILE, HIST_RANGES
+from .mesh_utils import triangle_areas, edges
 
-# fixed ranges for the histograms: every shape must use the SAME bins, otherwise the
-# histograms are not comparable. Shapes are normalized to the unit cube, so the
-# ranges are bounded; values outside are clipped into the first/last bin.
-# A3 is an angle, so [0, pi]. D1-D4: upper bound = HIST_PERCENTILE-th percentile of the
-# values over the whole database, computed with calibrate_hist_ranges() (see step3_2.py)
-HIST_PERCENTILE = 99.9
-HIST_RANGES = {
-    "A3": (0.0, np.pi),
-    "D1": (0.0, 0.75),
-    "D2": (0.0, 1.09),
-    "D3": (0.0, 0.57),
-    "D4": (0.0, 0.34),
-}
 SCALAR_FEATURES = ["area", "volume", "compactness", "rectangularity", "diameter", "convexity", "eccentricity"]
 HIST_FEATURES = list(HIST_RANGES.keys())
 
@@ -71,15 +57,9 @@ def repair_for_volume(ms):
 
 def count_boundary_edges(t):
     # edges used by exactly one triangle form the hole boundaries
-    e = np.sort(np.concatenate([t[:, [0, 1]], t[:, [1, 2]], t[:, [2, 0]]]), axis=1)
-    _, counts = np.unique(e, axis=0, return_counts=True)
+    _, counts = edges(t, return_counts=True)
     return int((counts == 1).sum())
 
-
-
-def triangle_areas(v, t):
-    tri = v[t]
-    return 0.5 * np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)
 
 
 def mesh_volume(v, t):

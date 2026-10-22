@@ -14,25 +14,34 @@ the source code, and a live demo. The full assignment is imported above.
 - `docs/tech_tips_step3b.md`: mesh volume (needs consistent orientation, closed meshes), checking features
 - `docs/tech_tips_step3c.md`: normalizing histograms, sampling A3/D1–D4, sample counts
 
+## Project layout
+
+- `cbsr/`: the library (all reusable logic). `config.py` holds ALL paths and parameters (target vertex count,
+  tolerance, bins, sample counts, seed, histogram ranges); change them there, not in scripts.
+  `pipeline.process_shape(path)` runs the full preprocessing + feature extraction for one shape (for queries).
+- `analysis/`: checks and figures for the report; never imported by `cbsr/` or the app.
+- `steps/`: thin run scripts, one per assignment step.
+- `data/` (git-ignored): `ShapeDatabase/` (input), `remeshed/`, `normalized/`, `aligned/`.
+- `results/step2/`, `results/step3/`: CSVs and `figures/` per step.
+
 ## Running code
 
 - Python environment: `.venv310/bin/python` (packages pinned in `requirements.txt`, e.g. pandas 2.3.3)
-- Each step is a script in `steps/` (`step2.py`, `step3.py`, `step3_2.py`); run from the project root
+- Run everything from the project root: `steps/step2.py`, `steps/step3.py`, `steps/step3_2.py`, `analysis/step2_figures.py`
 - `USE_FILTER = True` in a step script = balanced subset for testing; `False` = full database (needed for final results)
 
 ## Pipeline
 
 ```
-ShapeDatabase/ → ShapeDatabase_remeshed/ → ShapeDatabase_normalized/ → ShapeDatabase_aligned/ → stats/features.csv
-   (input)        Step 2.3, remeshing.py     Step 2.5, normalizer.py      Step 3.1, alignment.py    Step 3.2, features.py
+data/ShapeDatabase → data/remeshed → data/normalized → data/aligned → results/step3/features.csv
+     (input)          Step 2.3          Step 2.5          Step 3.1       Step 3.2
+                 cbsr/remeshing.py  cbsr/normalization.py           cbsr/features.py
 ```
 
 - The database folders are generated and git-ignored. Rerunning a step means rerunning every step after it.
 - Order of operations follows tech tips step 3: remeshing → translation → alignment → flipping → size.
-- Stats and logs are written to `stats/` (e.g. `original_db_shape_stats.csv`, `remeshed_db_shape_stats.csv`,
-  `remeshing_log.csv`, `remeshing_verification.csv`, `normalization_check.csv`, `alignment_check.csv`).
 
-## Remeshing decisions (Step 2.3, `remeshing.py`)
+## Remeshing decisions (Step 2.3, `cbsr/remeshing.py`)
 
 - Target V_target = 6000 vertices, tolerance ±10% → band [5400, 6600]. Shapes inside the band are copied
   unchanged. V_target is chosen from the assignment's 5K–10K guideline, NOT the database average.
@@ -63,7 +72,7 @@ ShapeDatabase/ → ShapeDatabase_remeshed/ → ShapeDatabase_normalized/ → Sha
 
 ## Known pitfalls
 
-- Paths in CSVs must use forward slashes. Files generated on Windows contain `ShapeDatabase\Class\file.obj`,
+- Paths in CSVs must use forward slashes. Files generated on Windows contain `data\aligned\Class\file.obj`,
   which breaks loading on macOS. Build paths with `os.path.join` and regenerate such CSVs locally.
 - Keep a pymeshlab `MeshSet` in a variable before reading counts: `refine(f).current_mesh().vertex_number()`
   can return 0 because the temporary MeshSet is freed.

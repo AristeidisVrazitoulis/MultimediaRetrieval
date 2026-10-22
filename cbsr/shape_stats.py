@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from mesh_vizualizer import open_mesh, get_mesh_data
+from .viewer import open_mesh, get_mesh_data
 
 
 # Iterates a whole database and export per each shape its data(vert count, faces count, etc etc)

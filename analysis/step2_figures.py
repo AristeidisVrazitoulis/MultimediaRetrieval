@@ -1,7 +1,5 @@
-# use this file to play around with steps or part of the steps. It is like a draft
-
 # Step 2 report figures (professor feedback + tech tips). Run from the project root:
-#   .venv310/bin/python steps/scratch.py
+#   .venv310/bin/python analysis/step2_figures.py
 # Mesh renders use the CURRENT remeshing code in memory (independent of the database
 # on disk). The histograms read the stats CSVs and the remeshed database, so run
 # steps/step2.py first to make those up to date.
@@ -20,20 +18,20 @@ import pymeshlab as pml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import remeshing as R
+from cbsr import remeshing as R
+from cbsr import config
 
 
-STATS_SOURCE_FOLDER = "stats/"
-FIGURES_DIR = STATS_SOURCE_FOLDER + "figures_step2/"
-ORIGINAL_DB = "ShapeDatabase"
-REMESHED_DB = "ShapeDatabase_remeshed"
+FIGURES_DIR = config.STEP2_FIGURES + "/"
+ORIGINAL_DB = config.ORIGINAL_DB
+REMESHED_DB = config.REMESHED_DB
 
-initial_stats_filename = STATS_SOURCE_FOLDER + "original_db_shape_stats.csv"
-remeshed_stats_filename = STATS_SOURCE_FOLDER + "remeshed_db_shape_stats.csv"
-normalization_check_filename = STATS_SOURCE_FOLDER + "normalization_check.csv"
+initial_stats_filename = config.ORIGINAL_STATS_CSV
+remeshed_stats_filename = config.REMESHED_STATS_CSV
+normalization_check_filename = config.NORMALIZATION_CHECK_CSV
 
-TARGET_VERTICES = 6000
-TOLERANCE = 0.10
+TARGET_VERTICES = config.TARGET_VERTICES
+TOLERANCE = config.TOLERANCE
 BAND = (TARGET_VERTICES * (1 - TOLERANCE), TARGET_VERTICES * (1 + TOLERANCE))
 
 # shapes used in the figures

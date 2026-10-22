@@ -217,14 +217,12 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Shape databases (generated data)
-ShapeDatabase/
-ShapeDatabase_aligned/
-ShapeDatabase_final/
-ShapeDatabase_normalized/
+# Shape databases: the input and all generated versions (see cbsr/config.py)
+data/
+# old locations (before the move into data/), so nobody commits them by accident
+ShapeDatabase*/
+
 .DS_Store
-ShapeDatabase_remeshed/
-ShapeDatabase_aligned/
 
 .venv310/
 .vscode/
