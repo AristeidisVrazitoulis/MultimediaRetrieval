@@ -6,9 +6,10 @@ import pandas as pd
 import open3d as o3d
 import matplotlib.pyplot as plt
 
-from features import N_BINS, HIST_RANGES, HIST_FEATURES, SCALAR_FEATURES, extract_features
+from cbsr.features import N_BINS, HIST_RANGES, HIST_FEATURES, SCALAR_FEATURES, extract_features
+from cbsr.config import STEP3_FIGURES
 
-FIGURES_DIR = "stats/figures_features"
+FIGURES_DIR = STEP3_FIGURES
 
 
 # check the descriptors on simple shapes whose values we know

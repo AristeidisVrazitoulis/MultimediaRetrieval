@@ -6,10 +6,10 @@ import math
 import os
 import shutil
 
+from .config import TARGET_VERTICES, TOLERANCE, ORIGINAL_DB, REMESHED_DB, REMESHING_LOG_CSV, REMESHING_VERIFICATION_CSV
+from .mesh_utils import edges
 
-# midpoint of the suggested 5K-10K range
-TARGET_VERTICES = 6000          
-OUTPUT_DIR = "ShapeDatabase_remeshed"
+OUTPUT_DIR = REMESHED_DB
 
 
 
@@ -68,12 +68,12 @@ def decimate_to(ms, target_v, tol):
 
 def edge_lengths(m):
     v, f = m.vertex_matrix(), m.face_matrix()
-    e = np.unique(np.sort(np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]]), axis=1), axis=0)
+    e = edges(f)
     return np.linalg.norm(v[e[:, 0]] - v[e[:, 1]], axis=1)
 
 
 
-def refine(path, target_v=TARGET_VERTICES, tol=0.10):
+def refine(path, target_v=TARGET_VERTICES, tol=TOLERANCE):
     ms = pml.MeshSet()
     ms.load_new_mesh(path)
     was_nonmanifold = clean_mesh(ms)
@@ -97,7 +97,7 @@ def refine(path, target_v=TARGET_VERTICES, tol=0.10):
 
 #meshing_decimation_quadric_edge_collapse(targetfacenum=...) (repeatedly merges
 #the edge whose removal changes the shape least until it hits the target
-def simplify(path, target_v=TARGET_VERTICES, tol=0.10):
+def simplify(path, target_v=TARGET_VERTICES, tol=TOLERANCE):
     ms = pml.MeshSet()
     ms.load_new_mesh(path)
     was_nonmanifold = clean_mesh(ms)
@@ -130,7 +130,7 @@ def quick_stats(path):
     return len(v), len(t)
 
 
-def verify_resampled_files(resample_log_filename, verification_filename, target_v=TARGET_VERTICES, tol=0.10):
+def verify_resampled_files(resample_log_filename, verification_filename, target_v=TARGET_VERTICES, tol=TOLERANCE):
     df_log = pd.read_csv(resample_log_filename)
 
     rows = []
@@ -154,15 +154,15 @@ def verify_resampled_files(resample_log_filename, verification_filename, target_
     return df_check
 
 ####fix: resamle every shape unless it is already clse to the target (+-10%)
-def needs_resample(nv, target=TARGET_VERTICES, tol=0.10):
+def needs_resample(nv, target=TARGET_VERTICES, tol=TOLERANCE):
     return abs(nv - target) > target * tol
 
-def remesh_outliers(df, out_filename, target_v=TARGET_VERTICES, tol=0.10):
+def remesh_outliers(df, out_filename, target_v=TARGET_VERTICES, tol=TOLERANCE):
       # one-time full copy of the original database; save_resampled() then
-    # overwrites just the outlier files in place, so ShapeDatabase_final ends
+    # overwrites just the outlier files in place, so OUTPUT_DIR ends
     # up as a single complete, corrected working database (no separate merge step)
     if not os.path.exists(OUTPUT_DIR):
-        shutil.copytree("ShapeDatabase", OUTPUT_DIR)
+        shutil.copytree(ORIGINAL_DB, OUTPUT_DIR)
     resample_log.clear()
 
     #low_outliers = df[(df['num_faces'] < low_threshold) | (df['num_vertices'] < low_threshold)]
@@ -202,7 +202,7 @@ def filter_dataframe(df, sample_size=200):
 # find outliers
 if __name__ == '__main__':
 
-    verify_resampled_files("resampling_report.csv", "stats_resampled_verification.csv")
+    verify_resampled_files(REMESHING_LOG_CSV, REMESHING_VERIFICATION_CSV)
 
 
     

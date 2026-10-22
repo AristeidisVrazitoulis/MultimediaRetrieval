@@ -4,18 +4,19 @@ import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from features import compute_database_features, show_shape_features, calibrate_hist_ranges, HIST_FEATURES, SCALAR_FEATURES
-from feature_checks import (plot_histograms_per_class, compare_three_shapes, scalar_extremes,
-                            within_vs_between, volume_reliability, validate_on_primitives)
-from mesh_vizualizer import visualize_shape
+from cbsr.features import compute_database_features, show_shape_features, calibrate_hist_ranges, HIST_FEATURES, SCALAR_FEATURES
+from cbsr.viewer import visualize_shape
+from cbsr import config
+from analysis.feature_checks import (plot_histograms_per_class, compare_three_shapes, scalar_extremes,
+                                     within_vs_between, volume_reliability, validate_on_primitives)
 
 
 CALIBRATE_RANGES = False  # set True once to print the histogram ranges to copy into HIST_RANGES
                           # (then set it back to False: features are computed with the CURRENT HIST_RANGES)
-COMPUTE_FEATURES = False   # set False to reuse stats/features.csv (computed anyway if missing)
+COMPUTE_FEATURES = False   # set False to reuse results/step3/features.csv (computed anyway if missing)
 SHOW_EXTREMES = False     # set True to open the lowest/highest shape of each descriptor in the viewer
 
-ALIGNED_DB = "ShapeDatabase_aligned"     # output of Step 3.1 (fully normalized shapes)
+ALIGNED_DB = config.ALIGNED_DB     # output of Step 3.1 (fully normalized shapes)
 EXAMPLE_SHAPE = "Bird/m32.obj"
 
 # two shapes of the same class + one of a different class 
@@ -23,11 +24,10 @@ SAME_CLASS_A = "Guitar/D00335.obj"
 SAME_CLASS_B = "Guitar/D00464.obj"
 OTHER_CLASS = "Mug/D00427.obj"
 
-STATS_SOURCE_FOLDER = "stats/"
-features_filename = STATS_SOURCE_FOLDER + "features.csv"
-extremes_filename = STATS_SOURCE_FOLDER + "feature_extremes.csv"
-separation_filename = STATS_SOURCE_FOLDER + "feature_class_separation.csv"
-unreliable_volume_filename = STATS_SOURCE_FOLDER + "feature_unreliable_volume.csv"
+features_filename = config.FEATURES_CSV
+extremes_filename = config.FEATURE_EXTREMES_CSV
+separation_filename = config.FEATURE_SEPARATION_CSV
+unreliable_volume_filename = config.FEATURE_UNRELIABLE_VOLUME_CSV
 
 
 # Step 3.2
@@ -35,7 +35,7 @@ unreliable_volume_filename = STATS_SOURCE_FOLDER + "feature_unreliable_volume.cs
 # validate_on_primitives()
 
 # Choose the histogram ranges: percentile of the values over the whole database.
-# Copy the printed values into HIST_RANGES in features.py before computing the features
+# Copy the printed values into HIST_RANGES in cbsr/config.py before computing the features
 if CALIBRATE_RANGES:
     print(calibrate_hist_ranges(ALIGNED_DB))
     
@@ -56,7 +56,7 @@ df_features = pd.read_csv(features_filename)
 print(df_features[SCALAR_FEATURES].describe().loc[["min", "50%", "max"]].T)
 
 # Histograms per class: curves should be grouped within each plot
-# and look different across plots. Saved in stats/figures_features/
+# and look different across plots. Saved in results/step3/figures/
 for name in HIST_FEATURES:
     plot_histograms_per_class(df_features, name)
 
