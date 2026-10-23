@@ -3,10 +3,11 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mesh_vizualizer import open_mesh, visualize_mesh
+from cbsr.viewer import open_mesh, visualize_mesh
+from cbsr.config import ORIGINAL_DB
 
 
-database_root = "ShapeDatabase"
+database_root = ORIGINAL_DB
 # Change this variable if you want to see a different object
 filename = f"{database_root}/Bird/D00089.obj"
 
