@@ -13,6 +13,7 @@ the source code, and a live demo. The full assignment is imported above.
 - `docs/tech_tips_step3.md`: translation / alignment / flipping / size formulas, final step order
 - `docs/tech_tips_step3b.md`: mesh volume (needs consistent orientation, closed meshes), checking features
 - `docs/tech_tips_step3c.md`: normalizing histograms, sampling A3/D1–D4, sample counts
+- `docs/tech_tips_step4.md` : querying tool
 
 ## Project layout
 
