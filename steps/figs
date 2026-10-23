@@ -1,0 +1,59 @@
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import open3d as o3d
+import numpy as np
+import pandas as pd
+
+NORM_DB = "ShapeDatabase_normalized"   # before alignment (Step 2.5 output)
+ALIGNED_DB = "ShapeDatabase_aligned"   # after alignment (Step 3.1 output)
+
+def load_verts(path):
+    m = o3d.io.read_triangle_mesh(path)
+    return np.asarray(m.vertices)
+
+def plot_shape(ax, v, title):
+    ax.scatter(v[:,0], v[:,1], v[:,2], s=0.5, alpha=0.5)
+    # draw world axes for reference
+    for i, c in enumerate(['r','g','b']):
+        d = np.zeros(3); d[i] = 0.5
+        ax.plot([0, d[0]], [0, d[1]], [0, d[2]], color=c, linewidth=2)
+    ax.set_title(title, fontsize=9)
+    ax.set_box_aspect([1,1,1])
+    lim = 0.6
+    ax.set_xlim(-lim, lim); ax.set_ylim(-lim, lim); ax.set_zlim(-lim, lim)
+
+examples = [
+    ("RectangleTable/m871.obj", "m871 (worst, 0.00165)"),
+    ("MultiSeat/m841.obj", "m841 (2nd worst, 0.00033)"),
+    ("Insect/D00787.obj", "D00787 (well-aligned, 3.164973e-11)"),
+]
+
+fig = plt.figure(figsize=(12, 4 * len(examples)))
+for i, (rel_path, label) in enumerate(examples):
+    before = load_verts(f"{NORM_DB}/{rel_path}")
+    after = load_verts(f"{ALIGNED_DB}/{rel_path}")
+
+    ax1 = fig.add_subplot(len(examples), 2, 2*i+1, projection='3d')
+    plot_shape(ax1, before, f"{label}\nBefore alignment")
+
+    ax2 = fig.add_subplot(len(examples), 2, 2*i+2, projection='3d')
+    plot_shape(ax2, after, f"{label}\nAfter alignment")
+
+plt.tight_layout()
+plt.savefig("stats/figures_aligned/alignment_before_after.png", dpi=150)
+plt.show()
+
+
+df_check = pd.read_csv("stats/alignment_check.csv")
+plt.figure(figsize=(6,4))
+plt.hist(df_check.off_diag_covariance, bins=np.logspace(-11, -2, 40))
+plt.xscale("log")
+plt.xlabel("Off-diagonal covariance (log scale)")
+plt.ylabel("Number of shapes")
+plt.title("Alignment quality across full database")
+plt.tight_layout()
+plt.savefig("stats/figures_aligned/alignment_histogram.png", dpi=150)
+
+df_check = pd.read_csv("stats/alignment_check.csv")
+second_cluster = df_check[df_check.off_diag_covariance > 1e-7]
+print(second_cluster['file'].apply(lambda p: p.split('\\')[1] if '\\' in p else p.split('/')[1]).value_counts().head(10))   
