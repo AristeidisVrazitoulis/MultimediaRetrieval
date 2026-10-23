@@ -14,5 +14,3 @@ avg_vertices = df['num_vertices'].mean()
 closest_idx = (df['num_vertices'] - avg_vertices).abs().idxmin()
 average_shape = df.loc[closest_idx]
 print(average_shape)
-
-
