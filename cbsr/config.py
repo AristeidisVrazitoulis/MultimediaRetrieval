@@ -15,6 +15,7 @@ ALIGNED_DB = os.path.join(DATA_DIR, "aligned")            # Step 3.1 (fully norm
 RESULTS_DIR = "results"
 STEP2_DIR = os.path.join(RESULTS_DIR, "step2")
 STEP3_DIR = os.path.join(RESULTS_DIR, "step3")
+STEP4_DIR = os.path.join(RESULTS_DIR, "step4")
 STEP2_FIGURES = os.path.join(STEP2_DIR, "figures")
 STEP3_FIGURES = os.path.join(STEP3_DIR, "figures")
 
@@ -38,6 +39,15 @@ FEATURES_CSV = os.path.join(STEP3_DIR, "features.csv")
 FEATURE_EXTREMES_CSV = os.path.join(STEP3_DIR, "feature_extremes.csv")
 FEATURE_SEPARATION_CSV = os.path.join(STEP3_DIR, "feature_class_separation.csv")
 FEATURE_UNRELIABLE_VOLUME_CSV = os.path.join(STEP3_DIR, "feature_unreliable_volume.csv")
+
+# Step 4
+# the normalized feature database (one file per normalization method), as the assignment asks to store it
+NORMALIZED_FEATURES_CSV = os.path.join(STEP4_DIR, "normalized_features_{method}.csv")
+# fitted normalization parameters + per-block distance std, for every distance configuration;
+# written by steps/step4.py, loaded by the app (and later Steps 5-6) so all use the same numbers
+PREPARED_PARAMS_JSON = os.path.join(STEP4_DIR, "prepared_params.json")
+# precision@K of the distance configurations, to justify the final choice in the report
+DISTANCE_COMPARISON_CSV = os.path.join(STEP4_DIR, "distance_comparison.csv")
 
 # ---------------------------------------------------------------- Step 2: remeshing
 # user-chosen target inside the assignment's suggested 5K-10K range (NOT the database average)
@@ -64,3 +74,17 @@ HIST_RANGES = {
     "D3": (0.0, 0.57),
     "D4": (0.0, 0.34),
 }
+
+# ---------------------------------------------------------------- Step 4: querying
+# compactness and eccentricity span several orders of magnitude (up to ~1e9 and ~1e5): log10 keeps
+# their order but stops a few extreme shapes from dominating the mean/std (or min/max)
+LOG_FEATURES = ["compactness", "eccentricity"]
+NORMALIZATION_METHODS = ["standardize", "minmax"]
+SCALAR_DISTANCES = ["euclidean", "manhattan"]
+HIST_DISTANCES = ["euclidean", "manhattan", "emd"]
+DEFAULT_NORMALIZATION = "standardize"
+DEFAULT_SCALAR_DISTANCE = "euclidean"
+DEFAULT_HIST_DISTANCE = "emd"
+# distance weighting (tech tips step 4): each block's distance is divided by its std over this many
+# random pairs of database shapes, computed once and stored
+N_DISTANCE_PAIRS = 20_000

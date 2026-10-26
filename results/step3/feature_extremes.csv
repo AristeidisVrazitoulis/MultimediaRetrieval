@@ -25,5 +25,5 @@ convexity,highest,0.999993676940781,data/aligned/Drum/D00115.obj
 convexity,highest,0.999997763784758,data/aligned/Drum/D00709.obj
 eccentricity,lowest,1.0432571570157654,data/aligned/RoundTable/D00107.obj
 eccentricity,lowest,1.050246805702637,data/aligned/RoundTable/D00401.obj
-eccentricity,highest,19390.606781618797,data/aligned/Insect/D00787.obj
+eccentricity,highest,19390.606781618793,data/aligned/Insect/D00787.obj
 eccentricity,highest,86284.24002835764,data/aligned/Tree/m1097.obj

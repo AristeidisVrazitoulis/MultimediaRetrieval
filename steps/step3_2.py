@@ -11,7 +11,7 @@ from analysis.feature_checks import (plot_histograms_per_class, compare_three_sh
                                      within_vs_between, volume_reliability, validate_on_primitives)
 
 
-CALIBRATE_RANGES = False  # set True once to print the histogram ranges to copy into HIST_RANGES
+CALIBRATE_RANGES = True  # set True once to print the histogram ranges to copy into HIST_RANGES
                           # (then set it back to False: features are computed with the CURRENT HIST_RANGES)
 COMPUTE_FEATURES = False   # set False to reuse results/step3/features.csv (computed anyway if missing)
 SHOW_EXTREMES = False     # set True to open the lowest/highest shape of each descriptor in the viewer
