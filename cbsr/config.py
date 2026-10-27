@@ -16,6 +16,8 @@ RESULTS_DIR = "results"
 STEP2_DIR = os.path.join(RESULTS_DIR, "step2")
 STEP3_DIR = os.path.join(RESULTS_DIR, "step3")
 STEP4_DIR = os.path.join(RESULTS_DIR, "step4")
+STEP5_DIR = os.path.join(RESULTS_DIR, "step5")
+STEP5_FIGURES = os.path.join(STEP5_DIR, "figures")
 STEP2_FIGURES = os.path.join(STEP2_DIR, "figures")
 STEP3_FIGURES = os.path.join(STEP3_DIR, "figures")
 
@@ -48,6 +50,14 @@ NORMALIZED_FEATURES_CSV = os.path.join(STEP4_DIR, "normalized_features_{method}.
 PREPARED_PARAMS_JSON = os.path.join(STEP4_DIR, "prepared_params.json")
 # precision@K of the distance configurations, to justify the final choice in the report
 DISTANCE_COMPARISON_CSV = os.path.join(STEP4_DIR, "distance_comparison.csv")
+
+# Step 5
+# K nearest neighbours of a few query shapes, with the Step 4 custom distance and with the kd-tree (L2)
+QUERY_TABLE_CSV = os.path.join(STEP5_DIR, "query_table.csv")
+# query time and precision@K of the custom distance (brute force) vs the kd-tree
+SEARCH_COMPARISON_CSV = os.path.join(STEP5_DIR, "search_comparison.csv")
+# 2D t-SNE coordinates of every shape, one file per perplexity
+TSNE_CSV = os.path.join(STEP5_DIR, "tsne_perplexity{perplexity}.csv")
 
 # ---------------------------------------------------------------- Step 2: remeshing
 # user-chosen target inside the assignment's suggested 5K-10K range (NOT the database average)
@@ -88,3 +98,9 @@ DEFAULT_HIST_DISTANCE = "emd"
 # distance weighting (tech tips step 4): each block's distance is divided by its std over this many
 # random pairs of database shapes, computed once and stored
 N_DISTANCE_PAIRS = 20_000
+
+# ---------------------------------------------------------------- Step 5: scalability
+KDTREE_LEAF_SIZE = 30        # max shapes per kd-tree leaf (scikit-learn default)
+# t-SNE: tech tips step 5 suggest perplexity 30..40 and at least 500 iterations
+TSNE_PERPLEXITY = 30
+TSNE_MAX_ITER = 1000
