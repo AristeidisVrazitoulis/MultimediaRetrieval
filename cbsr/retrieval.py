@@ -29,9 +29,10 @@ def load_database():
 
 
 def features_fingerprint(path=FEATURES_CSV):
-    # identifies the feature table the stored parameters were fitted on
+    # identifies the feature table the stored parameters were fitted on. Line endings are
+    # normalized first: Git on Windows checks the CSV out with CRLF, which would change the hash
     with open(path, "rb") as f:
-        return hashlib.sha1(f.read()).hexdigest()
+        return hashlib.sha1(f.read().replace(b"\r\n", b"\n")).hexdigest()
 
 
 # ---------------------------------------------------------------- feature normalization (tech tips, (1))

@@ -14,6 +14,7 @@ the source code, and a live demo. The full assignment is imported above.
 - `docs/tech_tips_step3b.md`: mesh volume (needs consistent orientation, closed meshes), checking features
 - `docs/tech_tips_step3c.md`: normalizing histograms, sampling A3/D1–D4, sample counts
 - `docs/tech_tips_step4.md` : querying tool
+- `docs/tech_tips_step5.md`: presenting KNN results (query table, custom distance vs ANN), t-SNE plot and its parameters
 
 ## Project layout
 
