@@ -95,9 +95,8 @@ HIST_DISTANCES = ["euclidean", "manhattan", "emd"]
 DEFAULT_NORMALIZATION = "standardize"
 DEFAULT_SCALAR_DISTANCE = "euclidean"
 DEFAULT_HIST_DISTANCE = "emd"
-# distance weighting (tech tips step 4): each block's distance is divided by its std over this many
-# random pairs of database shapes, computed once and stored
-N_DISTANCE_PAIRS = 20_000
+# distance weighting (tech tips step 4): each block's distance is divided by its std over ALL pairs
+# of database shapes, computed once and stored
 
 # ---------------------------------------------------------------- Step 5: scalability
 KDTREE_LEAF_SIZE = 30        # max shapes per kd-tree leaf (scikit-learn default)
