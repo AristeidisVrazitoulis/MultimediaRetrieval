@@ -3,7 +3,7 @@
 # A shape's feature vector consists of BLOCKS: the scalar descriptors and one histogram per
 # distribution descriptor (A3, D1-D4). The distance between two shapes is computed per block and
 # the block distances are summed after DISTANCE WEIGHTING (tech tips step 4): every block distance
-# is divided by its standard deviation over random pairs of database shapes, so no block dominates
+# is divided by its standard deviation over all pairs of database shapes, so no block dominates
 # only because its distances are numerically larger.
 #
 # Everything that depends only on the database (normalization parameters, normalized block vectors,
@@ -15,7 +15,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from .config import (FEATURES_CSV, N_BINS, SEED, LOG_FEATURES, N_DISTANCE_PAIRS, PREPARED_PARAMS_JSON,
+from .config import (FEATURES_CSV, N_BINS, LOG_FEATURES, PREPARED_PARAMS_JSON,
                      DEFAULT_NORMALIZATION, DEFAULT_SCALAR_DISTANCE, DEFAULT_HIST_DISTANCE)
 from .features import SCALAR_FEATURES, HIST_FEATURES
 
@@ -109,30 +109,32 @@ def config_key(norm_method, scalar_distance, hist_distance, use_log=True, weight
 
 # ---------------------------------------------------------------- preparing the database (once)
 
-def block_distance_std(vectors, metrics, n_pairs=N_DISTANCE_PAIRS, seed=SEED):
-    # std of every block's distance over random pairs of (different) database shapes
-    rng = np.random.default_rng(seed)
+def block_distance_std(vectors, metrics, chunk=200):
+    # std of every block's distance over ALL pairs (i, j), i < j, of database shapes (n(n-1)/2 pairs).
+    # Computed in chunks of rows so the (rows x n x dims) difference array stays small in memory
     n = len(vectors["scalars"])
-    a, b = rng.integers(0, n, n_pairs), rng.integers(0, n, n_pairs)
-    keep = a != b
-    a, b = a[keep], b[keep]
     sigma = {}
     for blk, V in vectors.items():
-        s = float(METRICS[metrics[blk]](V[a] - V[b]).std())
+        d = []
+        for start in range(0, n, chunk):
+            rows = np.arange(start, min(start + chunk, n))
+            D = METRICS[metrics[blk]](V[rows][:, None, :] - V[None, :, :])
+            d.append(D[rows[:, None] < np.arange(n)[None, :]])      # keep j > i: every pair once
+        s = float(np.concatenate(d).std())
         sigma[blk] = s if s > 1e-12 else 1.0
     return sigma
 
 
 def prepare_database(db, norm_method=DEFAULT_NORMALIZATION, scalar_distance=DEFAULT_SCALAR_DISTANCE,
                      hist_distance=DEFAULT_HIST_DISTANCE, use_log=True, weighting=True,
-                     n_pairs=N_DISTANCE_PAIRS, params=None, sigma=None):
+                     params=None, sigma=None):
     # params / sigma: pass stored values (load_prepared) to reuse them instead of fitting again
     if params is None:
         params = fit_normalization(db, norm_method, LOG_FEATURES if use_log else [])
     vectors = block_vectors(db, params, hist_distance)
     metrics = block_metrics(scalar_distance, hist_distance)
     if sigma is None:
-        sigma = block_distance_std(vectors, metrics, n_pairs) if weighting else {b: 1.0 for b in BLOCKS}
+        sigma = block_distance_std(vectors, metrics) if weighting else {b: 1.0 for b in BLOCKS}
     return {
         "config": {"norm_method": norm_method, "scalar_distance": scalar_distance,
                    "hist_distance": hist_distance, "use_log": use_log, "weighting": weighting},
