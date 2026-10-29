@@ -84,7 +84,7 @@ if not from_file:
 q = db[db.file == shape].iloc[0].to_dict()
 
 
-tab_query, tab_features, tab_tsne = st.tabs(["Query", "Normalized features", "t-SNE map"])
+tab_query, tab_features, tab_tsne, tab_eval = st.tabs(["Query", "Normalized features", "t-SNE map", "Evaluation"])
 
 # ---------------------------------------------------------------- tab 1: query + best matches
 MAX_SHOWN = 20      # a range search can return many shapes: only the closest ones are rendered
@@ -154,3 +154,32 @@ with tab_tsne:
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
     st.plotly_chart(fig, width="stretch")
+
+# ---------------------------------------------------------------- tab 4: evaluation (Step 6)
+PRECISION_PER_CLASS_CSV = "results/step6/precision_per_class.csv"
+
+@st.cache_data
+def precision_per_class():
+    return pd.read_csv(PRECISION_PER_CLASS_CSV)
+
+with tab_eval:
+    st.subheader("Evaluation (Step 6): precision@10")
+    try:
+        prec_df = precision_per_class()
+        grand_avg = (prec_df["mean_precision"] * prec_df["n_shapes"]).sum() / prec_df["n_shapes"].sum()
+
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.metric("Grand average precision@10", f"{grand_avg:.3f}")
+            q_class = q["class"]
+            row = prec_df[prec_df["class"] == q_class]
+            if len(row):
+                st.metric(f"Precision@10 for '{q_class}'", f"{row.iloc[0]['mean_precision']:.3f}",
+                          help=f"{int(row.iloc[0]['n_shapes'])} shapes in this class")
+
+        with col2:
+            chart_df = prec_df.sort_values("mean_precision", ascending=True).set_index("class")
+            st.bar_chart(chart_df["mean_precision"], height=max(300, 12 * len(chart_df)))
+
+    except FileNotFoundError:
+        st.info("Run `python steps/step6.py` first to generate the evaluation results.")
