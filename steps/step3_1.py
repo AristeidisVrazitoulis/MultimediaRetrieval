@@ -10,13 +10,12 @@ from cbsr.normalization import align_and_flip, check_alignment
 from cbsr import config
 
 
-USE_FILTER = False   # set True to test on the first 30 shapes only
+USE_FILTER = False   #set True to test on the first 30 shapes only
 
 SOURCE_DB = config.NORMALIZED_DB   # output of Step 2.5
 ALIGNED_DB = config.ALIGNED_DB     # output of Step 3.1
 
 alignment_check_filename = config.ALIGNMENT_CHECK_CSV
-
 
 #Step 3.1: align (PCA) + flip (moment test) every shape
 files = glob.glob(f"{SOURCE_DB}/*/*.obj")
@@ -31,7 +30,6 @@ for path in tqdm(files):
 
 
 #check that off-diagonal covariance is close to 0 for the aligned shapes
-print("Verifying alignment...")
 aligned_files = glob.glob(f"{ALIGNED_DB}/*/*.obj")
 
 import pandas as pd
