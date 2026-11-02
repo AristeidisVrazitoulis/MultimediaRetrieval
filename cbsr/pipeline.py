@@ -5,6 +5,7 @@
 # reloading is not neutral (Open3D drops unreferenced vertices when reading), so an
 # in-memory shortcut could give slightly different features than the database shapes.
 import os
+import shutil
 import tempfile
 import open3d as o3d
 
@@ -14,7 +15,9 @@ from .normalization import normalize, align_and_flip
 from .features import extract_features
 
 
-def process_shape(path, target_v=TARGET_VERTICES, tol=TOLERANCE):
+def process_shape(path, target_v=TARGET_VERTICES, tol=TOLERANCE, save_aligned=None):
+    # save_aligned: optional path where the remeshed + normalized + aligned mesh is kept (e.g. to
+    # show a new query shape in the app the same way as the database shapes)
     # vertex count as in the database statistics (Open3D, see shape_stats.py)
     nv = len(o3d.io.read_triangle_mesh(path).vertices)
     name = os.path.basename(path)
@@ -30,6 +33,8 @@ def process_shape(path, target_v=TARGET_VERTICES, tol=TOLERANCE):
         aligned = os.path.join(tmp, "aligned_" + name)
         align_and_flip(normalized, aligned)
         feats = extract_features(aligned)
+        if save_aligned:
+            shutil.copyfile(aligned, save_aligned)
     # report the input file, not the temporary one
     feats["file"] = path
     feats["class"] = os.path.basename(os.path.dirname(path))

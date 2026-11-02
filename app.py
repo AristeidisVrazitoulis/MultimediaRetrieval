@@ -1,4 +1,6 @@
 import os
+import hashlib
+import tempfile
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
@@ -9,6 +11,7 @@ from cbsr import config
 from cbsr.features import SCALAR_FEATURES
 from cbsr.retrieval import load_database, load_prepared, normalized_feature_table, query
 from cbsr.scalability import build_index, knn, range_search, tsne_embedding
+from cbsr.pipeline import process_shape
 
 st.set_page_config(page_title="3D shape retrieval", layout="wide")
 
@@ -60,10 +63,31 @@ def tsne_map(norm_method, scalar_distance, hist_distance):
 def default_index(options, value):
     return options.index(value)
 
+# a query shape that is not in the database: the uploaded OBJ file goes through the same pipeline as
+# the database shapes (remeshing, normalization, alignment/flipping, features: cbsr/pipeline.py)
+NEW_SHAPE_DIR = os.path.join(tempfile.gettempdir(), "cbsr_new_shapes")
+
+@st.cache_data(show_spinner="processing the new shape: remeshing, normalization, alignment, features...")
+def new_shape(data, name):
+    folder = os.path.join(NEW_SHAPE_DIR, hashlib.md5(data).hexdigest()[:10])
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, name)
+    with open(path, "wb") as f:
+        f.write(data)
+    aligned = os.path.join(folder, "aligned_" + name)
+    feats = process_shape(path, save_aligned=aligned)
+    feats["file"], feats["class"] = aligned, "new shape"
+    return feats
+
 SEARCHES = ["custom distance (Step 4)", "kd-tree: K nearest", "kd-tree: within distance R"]
+SOURCES = ["database shape", "new shape (OBJ file)"]
 
 with st.sidebar:
-    shape = st.selectbox("Query shape", db.file)
+    source = st.radio("Query", SOURCES)
+    if source == SOURCES[0]:
+        shape = st.selectbox("Query shape", db.file)
+    else:
+        upload = st.file_uploader("OBJ file", type="obj")
     search = st.radio("Search", SEARCHES)
     if search == SEARCHES[2]:
         r = st.slider("Distance R (L2)", 0.05, 2.0, 0.45, 0.05)
@@ -81,7 +105,15 @@ if not from_file:
     st.warning("No stored parameters for this configuration and feature table: computed them now. "
                "Run steps/step4.py to store them, so the app, the report and the evaluation use the same numbers.")
 
-q = db[db.file == shape].iloc[0].to_dict()
+if source == SOURCES[0]:
+    q = db[db.file == shape].iloc[0].to_dict()
+else:
+    if upload is None:
+        st.info("Upload an OBJ file in the sidebar to use it as the query.")
+        st.stop()
+    q = new_shape(upload.getvalue(), upload.name)
+    shape = q["file"]      # the processed (aligned) mesh, shown like the database shapes
+is_new = source == SOURCES[1]
 
 
 tab_query, tab_features, tab_tsne, tab_eval = st.tabs(["Query", "Normalized features", "t-SNE map", "Evaluation"])
@@ -90,7 +122,9 @@ tab_query, tab_features, tab_tsne, tab_eval = st.tabs(["Query", "Normalized feat
 MAX_SHOWN = 20      # a range search can return many shapes: only the closest ones are rendered
 
 with tab_query:
-    st.subheader(f"Query: {shape}")
+    st.subheader(f"Query: {upload.name + ' (new shape)' if is_new else shape}")
+    if is_new:
+        st.caption("shown after remeshing, normalization and alignment, as the database shapes")
     st.plotly_chart(mesh_figure(shape), width="stretch")
 
     if search == SEARCHES[0]:
@@ -124,7 +158,10 @@ with tab_features:
 
     # the query shape first, so it is easy to find
     st.markdown("**Query shape**")
-    st.dataframe(table[table.file == shape], hide_index=True)
+    if is_new:
+        st.dataframe(normalized_feature_table(pd.DataFrame([q]), prep["params"]), hide_index=True)
+    else:
+        st.dataframe(table[table.file == shape], hide_index=True)
 
     # check that the normalization worked: mean ≈ 0, std ≈ 1 (standardize) or min 0, max 1 (minmax)
     st.markdown("**Per-feature summary**")
@@ -153,6 +190,9 @@ with tab_tsne:
                              marker=dict(symbol="star", size=20, color="black", line=dict(color="white", width=1))))
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
+    if is_new:
+        st.caption("a new shape is not on the map: t-SNE has no mapping for new points, "
+                   "the whole map would have to be recomputed")
     st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------- tab 4: evaluation (Step 6)
