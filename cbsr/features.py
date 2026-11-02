@@ -20,12 +20,10 @@ HIST_FEATURES = list(HIST_RANGES.keys())
 
 
 def load_mesh(path):
-    # only remove isolated vertices (not used by any triangle): they are not part of
-    # the surface, but would end up in the convex hull and in the diameter.
-    # The geometry itself is left untouched
+    # the mesh as it comes out of Step 3.1. It has no unreferenced vertices: the normalization
+    # reads and writes every mesh with Open3D, which drops them
     ms = pml.MeshSet()
     ms.load_new_mesh(path)
-    ms.meshing_remove_unreferenced_vertices()
     return ms
 
 

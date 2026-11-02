@@ -42,6 +42,8 @@ FEATURES_CSV = os.path.join(STEP3_DIR, "features.csv")
 FEATURE_EXTREMES_CSV = os.path.join(STEP3_DIR, "feature_extremes.csv")
 FEATURE_SEPARATION_CSV = os.path.join(STEP3_DIR, "feature_class_separation.csv")
 FEATURE_UNRELIABLE_VOLUME_CSV = os.path.join(STEP3_DIR, "feature_unreliable_volume.csv")
+# per shape: how much larger the box after PCA alignment is than the smallest box found by rotating
+FEATURE_BOX_CHECK_CSV = os.path.join(STEP3_DIR, "feature_box_check.csv")
 
 # Step 4
 # the normalized feature database (one file per normalization method), as the assignment asks to store it

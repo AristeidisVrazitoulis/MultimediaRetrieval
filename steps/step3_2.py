@@ -8,13 +8,15 @@ from cbsr.features import compute_database_features, show_shape_features, calibr
 from cbsr.viewer import visualize_shape
 from cbsr import config
 from analysis.feature_checks import (plot_histograms_per_class, compare_three_shapes, scalar_extremes,
-                                     within_vs_between, volume_reliability, validate_on_primitives)
+                                     within_vs_between, volume_reliability, validate_on_primitives,
+                                     box_tightness)
 
 
-CALIBRATE_RANGES = True  # set True once to print the histogram ranges to copy into HIST_RANGES
+CALIBRATE_RANGES = False  # set True once to print the histogram ranges to copy into HIST_RANGES
                           # (then set it back to False: features are computed with the CURRENT HIST_RANGES)
 COMPUTE_FEATURES = False   # set False to reuse results/step3/features.csv (computed anyway if missing)
 SHOW_EXTREMES = False     # set True to open the lowest/highest shape of each descriptor in the viewer
+CHECK_BOX = True          # results/step3/feature_box_check.csv: PCA box vs smallest box found by rotating
 
 ALIGNED_DB = config.ALIGNED_DB     # output of Step 3.1 (fully normalized shapes)
 EXAMPLE_SHAPE = "Bird/m32.obj"
@@ -23,6 +25,10 @@ EXAMPLE_SHAPE = "Bird/m32.obj"
 SAME_CLASS_A = "Guitar/D00335.obj"
 SAME_CLASS_B = "Guitar/D00464.obj"
 OTHER_CLASS = "Mug/D00427.obj"
+
+# classes shown in the report's per-class histogram figures: thin shapes (Sword, Knife), round and
+# bulky ones (Mug, HumanHead) and heterogeneous classes (DeskLamp, PlantWildNonTree)
+REPORT_CLASSES = ["Sword", "Knife", "Mug", "HumanHead", "DeskLamp", "PlantWildNonTree"]
 
 features_filename = config.FEATURES_CSV
 extremes_filename = config.FEATURE_EXTREMES_CSV
@@ -59,6 +65,9 @@ print(df_features[SCALAR_FEATURES].describe().loc[["min", "50%", "max"]].T)
 # and look different across plots. Saved in results/step3/figures/
 for name in HIST_FEATURES:
     plot_histograms_per_class(df_features, name)
+    # for the report: a few classes with larger panels (<name>_per_class_subset.png)
+    plot_histograms_per_class(df_features, name, REPORT_CLASSES, n_cols=3,
+                              out_name=f"{name}_per_class_subset.png")
 
 # Same-class shapes should have similar histograms, different from the third one 
 compare_three_shapes(df_features, SAME_CLASS_A, SAME_CLASS_B, OTHER_CLASS)
@@ -68,7 +77,6 @@ compare_three_shapes(df_features, SAME_CLASS_A, SAME_CLASS_B, OTHER_CLASS)
 df_separation = within_vs_between(df_features)
 df_separation.to_csv(separation_filename, index=False)
 print(df_separation)
-
 # Lowest and highest shapes for each scalar descriptor: their values should
 # match what we see in the viewer (thin vs bulky, round vs box-like, ...)
 df_extremes = scalar_extremes(df_features)
@@ -82,3 +90,7 @@ if SHOW_EXTREMES:
 # Shapes whose volume (and so compactness, rectangularity, convexity) is not reliable:
 # mesh still open after repair, or convexity > 1
 volume_reliability(df_features).to_csv(unreliable_volume_filename, index=False)
+
+# Rectangularity: is the box after PCA alignment the smallest box? (a few minutes)
+if CHECK_BOX:
+    box_tightness(df_features).to_csv(config.FEATURE_BOX_CHECK_CSV, index=False)

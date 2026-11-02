@@ -45,23 +45,25 @@ def bin_centers(name):
 
 # Figures 1-2: one subplot per class, one line per shape.
 # Good feature: lines grouped within a plot, different "signatures" across plots
-def plot_histograms_per_class(df, name, classes=None, n_cols=6):
+def plot_histograms_per_class(df, name, classes=None, n_cols=6, out_name=None):
+    # classes: a subset to show (larger panels, for the report); out_name: file name of the figure
     classes = classes or sorted(df["class"].unique())
     n_rows = math.ceil(len(classes) / n_cols)
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 2.2 * n_rows), sharex=True, sharey=True)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 2.2 * n_rows), sharex=True, sharey=True,
+                             squeeze=False)
     x = bin_centers(name)
-    ymax = hist_matrix(df, name).max()
+    ymax = hist_matrix(df[df["class"].isin(classes)], name).max()
     for ax, c in zip(axes.flat, classes):
         for h in hist_matrix(df[df["class"] == c], name):
             ax.plot(x, h, linewidth=1)
-        ax.set_title(c, fontsize=8)
+        ax.set_title(c, fontsize=8 if len(classes) > 12 else 11)
         ax.set_ylim(0, ymax)
     for ax in list(axes.flat)[len(classes):]:
         ax.axis("off")
     fig.suptitle(f"{name} histograms per class")
     fig.tight_layout()
     os.makedirs(FIGURES_DIR, exist_ok=True)
-    fig.savefig(os.path.join(FIGURES_DIR, f"{name}_per_class.png"), dpi=120)
+    fig.savefig(os.path.join(FIGURES_DIR, out_name or f"{name}_per_class.png"), dpi=120)
     plt.close(fig)
 
 
@@ -143,3 +145,29 @@ def volume_reliability(df):
     print(f"compactness < 1: {len(under_compact)}", dict(zip(under_compact["file"], under_compact["compactness"].round(3))))
     print(f"reliable volume: {reliable_volume(df).sum()}/{len(df)}")
     return df[~reliable_volume(df)][["file", "boundary_edges_before", "boundary_edges_after", "volume", "compactness", "convexity"]]
+
+
+# Rectangularity uses the box after PCA alignment, which is not always the smallest box: PCA picks
+# the axes from the spread of the points, not from the extent of the shape. For every shape, rotate
+# the convex hull around each axis in 1 degree steps and keep the smallest box found.
+# ratio = smallest box found / PCA box (1 = PCA box already the smallest found)
+def box_tightness(df, step_deg=1):
+    rows = []
+    for f in df["file"]:
+        v = np.asarray(o3d.io.read_triangle_mesh(f).vertices)
+        hv = np.asarray(o3d.geometry.PointCloud(o3d.utility.Vector3dVector(v)).compute_convex_hull()[0].vertices)
+        ev = np.linalg.eigvalsh(np.cov(v.T))[::-1]
+        pca_box = np.prod(hv.max(0) - hv.min(0))
+        best = pca_box
+        for i, j in ((0, 1), (0, 2), (1, 2)):           # rotation in the plane of axes i, j
+            for a in np.radians(np.arange(step_deg, 90, step_deg)):
+                p = hv.copy()
+                p[:, i], p[:, j] = np.cos(a) * hv[:, i] - np.sin(a) * hv[:, j], np.sin(a) * hv[:, i] + np.cos(a) * hv[:, j]
+                best = min(best, np.prod(p.max(0) - p.min(0)))
+        rows.append({"file": f, "lambda2_over_lambda1": ev[1] / ev[0], "lambda3_over_lambda2": ev[2] / ev[1],
+                     "ratio": best / pca_box})
+    out = pd.DataFrame(rows)
+    loose = out["ratio"] < 1 / 1.1
+    print(f"PCA box at least 10% larger than the smallest box found: {loose.sum()}/{len(out)} "
+          f"({100 * loose.mean():.0f}%), median ratio {out['ratio'].median():.3f}")
+    return out
