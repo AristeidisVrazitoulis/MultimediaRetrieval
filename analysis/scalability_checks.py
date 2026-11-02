@@ -64,6 +64,13 @@ def precision(prep, neighbours):
     return float((classes[neighbours] == classes[:, None]).mean())
 
 
+def class_precision(prep, neighbours):
+    # precision per class: average over the shapes of each class
+    classes = prep["shapes"]["class"].to_numpy()
+    hits = (classes[neighbours] == classes[:, None]).mean(axis=1)
+    return pd.Series(hits).groupby(classes).mean()
+
+
 def overlap(a, b):
     # average fraction of the k results that the two searches have in common
     return float(np.mean([len(set(x) & set(y)) / len(x) for x, y in zip(a, b)]))
@@ -174,6 +181,15 @@ def map_precision(emb, k=5):
     _, idx = NearestNeighbors(n_neighbors=k + 1).fit(xy).kneighbors(xy)
     classes = emb["class"].to_numpy()
     return float((classes[drop_self(idx, k)] == classes[:, None]).mean())
+
+
+def map_precision_per_class(emb, k=5):
+    # the same, averaged over the shapes of each class: which classes the map separates well
+    xy = emb[["x", "y"]].to_numpy()
+    _, idx = NearestNeighbors(n_neighbors=k + 1).fit(xy).kneighbors(xy)
+    classes = emb["class"].to_numpy()
+    hits = (classes[drop_self(idx, k)] == classes[:, None]).mean(axis=1)
+    return pd.Series(hits).groupby(classes).mean()
 
 
 def plot_tsne(emb, title, out_name):

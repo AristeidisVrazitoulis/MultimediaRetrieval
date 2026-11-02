@@ -59,6 +59,8 @@ QUERY_TABLE_CSV = os.path.join(STEP5_DIR, "query_table.csv")
 SEARCH_COMPARISON_CSV = os.path.join(STEP5_DIR, "search_comparison.csv")
 # 2D t-SNE coordinates of every shape, one file per perplexity
 TSNE_CSV = os.path.join(STEP5_DIR, "tsne_perplexity{perplexity}.csv")
+# per class: precision@5 in the t-SNE map next to the Step 4 precision@K (custom distance)
+CLASS_PRECISION_CSV = os.path.join(STEP5_DIR, "class_precision.csv")
 
 # ---------------------------------------------------------------- Step 2: remeshing
 # user-chosen target inside the assignment's suggested 5K-10K range (NOT the database average)

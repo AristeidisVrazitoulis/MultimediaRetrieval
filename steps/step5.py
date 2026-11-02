@@ -9,12 +9,14 @@ from cbsr import config
 from cbsr.retrieval import load_database, load_prepared
 from cbsr.scalability import build_index, knn, range_search, tsne_embedding, index_vectors
 from analysis.scalability_checks import (query_table, plot_query_table, compare_searches,
-                                         map_precision, plot_tsne, tsne_html)
+                                         map_precision, plot_tsne, tsne_html, map_precision_per_class,
+                                         class_precision, custom_neighbours)
 
 
 MAKE_QUERY_TABLE = True     # results/step5/query_table.csv + figures/query_table_<method>.png (renders)
 COMPARE_SEARCHES = True     # results/step5/search_comparison.csv: precision@K and time, custom vs kd-tree
 MAKE_TSNE = True            # results/step5/tsne_perplexity<p>.csv + figures/tsne_perplexity<p>.png/.html
+MAKE_CLASS_PRECISION = True # results/step5/class_precision.csv: per class, t-SNE map vs Step 4 (needs the t-SNE CSV)
 K = 6                       # neighbours shown per query 
 
 # one query shape per class: classes where Step 4 works well (Bicycle, Jet), average (Humanoid, Mug)
@@ -81,3 +83,13 @@ if MAKE_TSNE:
         tsne_html(emb, title, f"tsne_perplexity{p}.html")
         rows.append({"perplexity": p, "kl_divergence": kl, "map_precision@5": map_precision(emb)})
     print(pd.DataFrame(rows).to_string(index=False))
+
+# Per class: which classes the map (chosen perplexity) separates, next to how well Step 4 retrieves them
+if MAKE_CLASS_PRECISION:
+    emb = pd.read_csv(config.TSNE_CSV.format(perplexity=config.TSNE_PERPLEXITY))
+    per_class = pd.DataFrame({"map_precision@5": map_precision_per_class(emb),
+                              f"step4_precision@{K}": class_precision(prep, custom_neighbours(prep, K))})
+    per_class = per_class.rename_axis("class").sort_values("map_precision@5", ascending=False)
+    per_class.to_csv(config.CLASS_PRECISION_CSV)
+    print("saved", config.CLASS_PRECISION_CSV)
+    print(per_class.round(3).to_string())
