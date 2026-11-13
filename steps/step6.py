@@ -25,7 +25,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cbsr import config
 from cbsr.retrieval import load_database, load_prepared, BLOCKS
-from cbsr.scalability import build_index, knn, index_vectors
+from cbsr.scalability import build_index, knn, index_vectors, index_sigma
 
 K = 10                          #main K for the per-shape / per-class / grand-average metric
 CURVE_KS = [1, 3, 5, 10, 20]    #K values for the precision@K curve
@@ -114,8 +114,10 @@ PASSES = 3
 def block_matrices(prep, metric):
     # delta_j / sigma_j for every pair of database shapes. metric "euclidean": what the L2 kd-tree sees
     # (index vector = block / sigma, so the SQUARED matrix is added); "cityblock": the Step 4 distance
-    # when all blocks use L1 / EMD
-    return {b: (cdist(prep["vectors"][b], prep["vectors"][b], metric) / prep["sigma"][b]).astype(np.float32)
+    # when all blocks use L1 / EMD. Each block is divided by the std of ITS metric's distance: the
+    # kd-tree's L2 sigma (index_sigma) or the Step 4 sigma
+    sigma = index_sigma(prep) if metric == "euclidean" else prep["sigma"]
+    return {b: (cdist(prep["vectors"][b], prep["vectors"][b], metric) / sigma[b]).astype(np.float32)
             for b in BLOCKS}
 
 

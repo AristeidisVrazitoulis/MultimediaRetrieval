@@ -44,6 +44,11 @@ FEATURE_SEPARATION_CSV = os.path.join(STEP3_DIR, "feature_class_separation.csv")
 FEATURE_UNRELIABLE_VOLUME_CSV = os.path.join(STEP3_DIR, "feature_unreliable_volume.csv")
 # per shape: how much larger the box after PCA alignment is than the smallest box found by rotating
 FEATURE_BOX_CHECK_CSV = os.path.join(STEP3_DIR, "feature_box_check.csv")
+# choice of B: precision@K and sampling noise for other bin counts, and for D1 from more surface points
+BIN_CHECK_CSV = os.path.join(STEP3_DIR, "bin_check.csv")
+D1_POINTS_CHECK_CSV = os.path.join(STEP3_DIR, "d1_points_check.csv")
+# the histograms recomputed for that check (large, so in the git-ignored data/ folder)
+BIN_CHECK_CACHE = os.path.join(DATA_DIR, "bin_check_histograms.npz")
 
 # Step 4
 # the normalized feature database (one file per normalization method), as the assignment asks to store it

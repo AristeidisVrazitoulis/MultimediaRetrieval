@@ -4,15 +4,31 @@
 # The kd-tree works with ONE built-in Lp distance over ONE vector per shape (here L2), while the
 # Step 4 "custom" distance is a weighted sum of per-block distances. The index vector of a shape is
 # therefore the concatenation of its Step 4 block vectors (normalized scalars, histograms or
-# cumulative histograms for EMD), each divided by that block's distance std sigma. With this
-# scaling every block contributes on the same scale, as in the custom distance, but the blocks are
-# combined by L2 over all coordinates instead of by summing the block distances.
+# cumulative histograms for EMD), each divided by the std of that block's L2 distance over all
+# pairs of database shapes. With this scaling every block contributes on the same scale in the
+# tree's L2 distance, as in the custom distance, but the blocks are combined by L2 over all
+# coordinates instead of by summing the block distances.
+#
+# The std is the one of the L2 distance (the metric the tree uses), NOT the Step 4 sigma: for EMD and
+# manhattan the Step 4 sigma is measured with L1, which grows with the number of coordinates faster
+# than L2, so dividing by it made every histogram block about 4x smaller than the scalars in the tree
 import numpy as np
 from sklearn.manifold import TSNE
 from sklearn.neighbors import KDTree
 
 from .config import SEED, KDTREE_LEAF_SIZE, TSNE_PERPLEXITY, TSNE_MAX_ITER
-from .retrieval import BLOCKS, block_vectors
+from .retrieval import BLOCKS, block_vectors, block_distance_std
+
+
+def index_sigma(prep):
+    # std of every block's L2 distance over all pairs of database shapes, computed once per prepared
+    # database (a few seconds) and kept in prep. Without distance weighting all blocks keep weight 1
+    if "sigma_index" not in prep:
+        if prep["config"]["weighting"]:
+            prep["sigma_index"] = block_distance_std(prep["vectors"], {b: "euclidean" for b in BLOCKS})
+        else:
+            prep["sigma_index"] = {b: 1.0 for b in BLOCKS}
+    return prep["sigma_index"]
 
 
 def index_vectors(prep, features=None):
@@ -21,7 +37,8 @@ def index_vectors(prep, features=None):
         blocks = prep["vectors"]
     else:
         blocks = block_vectors(features, prep["params"], prep["config"]["hist_distance"])
-    return np.hstack([blocks[b] / prep["sigma"][b] for b in BLOCKS])
+    sigma = index_sigma(prep)
+    return np.hstack([blocks[b] / sigma[b] for b in BLOCKS])
 
 
 def build_index(prep, leaf_size=KDTREE_LEAF_SIZE):

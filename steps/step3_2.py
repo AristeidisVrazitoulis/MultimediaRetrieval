@@ -10,6 +10,7 @@ from cbsr import config
 from analysis.feature_checks import (plot_histograms_per_class, compare_three_shapes, scalar_extremes,
                                      within_vs_between, volume_reliability, validate_on_primitives,
                                      box_tightness)
+from analysis.bin_checks import run_bin_checks
 
 
 CALIBRATE_RANGES = False  # set True once to print the histogram ranges to copy into HIST_RANGES
@@ -17,6 +18,8 @@ CALIBRATE_RANGES = False  # set True once to print the histogram ranges to copy 
 COMPUTE_FEATURES = False   # set False to reuse results/step3/features.csv (computed anyway if missing)
 SHOW_EXTREMES = False     # set True to open the lowest/highest shape of each descriptor in the viewer
 CHECK_BOX = True          # results/step3/feature_box_check.csv: PCA box vs smallest box found by rotating
+CHECK_BINS = False        # results/step3/bin_check.csv + d1_points_check.csv: other B and more D1 points
+                          # (about an hour the first time, then the histograms are read from data/)
 
 ALIGNED_DB = config.ALIGNED_DB     # output of Step 3.1 (fully normalized shapes)
 EXAMPLE_SHAPE = "Bird/m32.obj"
@@ -94,3 +97,7 @@ volume_reliability(df_features).to_csv(unreliable_volume_filename, index=False)
 # Rectangularity: is the box after PCA alignment the smallest box? (a few minutes)
 if CHECK_BOX:
     box_tightness(df_features).to_csv(config.FEATURE_BOX_CHECK_CSV, index=False)
+
+# Choice of B: precision@10 and sampling noise for other bin counts, and for D1 from more surface points
+if CHECK_BINS:
+    run_bin_checks()

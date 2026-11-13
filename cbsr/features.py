@@ -14,7 +14,10 @@ import pymeshlab as pml
 from .config import N_BINS, N_SURFACE_POINTS, N_SAMPLES, SEED, HIST_PERCENTILE, HIST_RANGES
 from .mesh_utils import triangle_areas, edges
 
-SCALAR_FEATURES = ["area", "volume", "compactness", "rectangularity", "diameter", "convexity", "eccentricity"]
+# the descriptors that go into the distance. The volume is still stored in the feature table (it is
+# needed for compactness, rectangularity and convexity), but it is not a descriptor of its own: it is
+# redundant with those three and unreliable on the 71% of shapes that stay open after repair
+SCALAR_FEATURES = ["area", "compactness", "rectangularity", "diameter", "convexity", "eccentricity"]
 HIST_FEATURES = list(HIST_RANGES.keys())
 
 
