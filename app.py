@@ -90,7 +90,8 @@ with st.sidebar:
         upload = st.file_uploader("OBJ file", type="obj")
     search = st.radio("Search", SEARCHES)
     if search == SEARCHES[2]:
-        r = st.slider("Distance R (L2)", 0.05, 2.0, 0.45, 0.05)
+        # default: median distance to the 6th neighbour in the kd-tree (steps/step5.py prints it)
+        r = st.slider("Distance R (L2)", 0.05, 2.0, 0.85, 0.05)
     else:
         k = st.slider("Number of results (K)", 1, 10, 5)
     norm_method = st.radio("Normalization", config.NORMALIZATION_METHODS,
